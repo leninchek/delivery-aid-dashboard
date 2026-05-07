@@ -19,6 +19,11 @@ for (const envFile of ENV_FILES) {
 const COLLECTION_AID_TYPES = "AidTypes";
 
 const aidTypeSeeds: AidTypeSeed[] = [
+{
+    name: "Apoyo económico",
+    unit: "MXN",
+    active: true,
+  },
   {
     name: "Despensa básica",
     unit: "paquete",
@@ -40,7 +45,7 @@ const aidTypeSeeds: AidTypeSeed[] = [
     active: true,
   },
   {
-    name: "Módulo de fármacos",
+    name: "Médicamento",
     unit: "paquete",
     active: true,
   },
@@ -55,17 +60,12 @@ const aidTypeSeeds: AidTypeSeed[] = [
     active: true,
   },
   {
-    name: "Apoyo ganadero",
-    unit: "pieza",
-    active: true,
-  },
-  {
     name: "Fertilizante",
     unit: "kg",
     active: true,
   },
   {
-    name: "Semillas",
+    name: "Frutas y Semillas",
     unit: "kg",
     active: true,
   },
@@ -96,7 +96,7 @@ const aidTypeSeeds: AidTypeSeed[] = [
   },
   {
     name: "Calzado",
-    unit: "par",
+    unit: "paquete",
     active: true,
   },
   {
@@ -115,7 +115,7 @@ const aidTypeSeeds: AidTypeSeed[] = [
     active: true,
   },
   {
-    name: "Equipo de protección",
+    name: "Equipo de deportivo",
     unit: "paquete",
     active: true,
   },

@@ -185,7 +185,7 @@ export default function RoutesPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Routes</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Rutas</h2>
         <p className="mt-2 text-sm text-slate-600">
           Catalogo de rutas operativas para asignacion territorial.
         </p>

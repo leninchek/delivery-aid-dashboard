@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 
-type AidUnit = "piece" | "MXN" | "kg" | "other";
+type AidUnit = "pieza" | "paquete" | "litro" | "kg" | "tarjeta" | "MXN" | "otro";
 
 type AidType = {
   id: string;
@@ -23,12 +23,22 @@ type AidType = {
   active: boolean;
 };
 
-const aidUnitOptions: AidUnit[] = ["piece", "MXN", "kg", "other"];
+const aidUnitOptions: AidUnit[] = ["pieza", "paquete", "litro", "kg", "tarjeta", "MXN", "otro"];
 
 const defaultForm: Pick<AidType, "name" | "unit" | "active"> = {
   name: "",
-  unit: "piece",
+  unit: "pieza",
   active: true,
+};
+
+const unitDisplayMap: Record<AidUnit, string> = {
+  pieza: "Pieza",
+  paquete: "Paquete",
+  litro: "Litro",
+  kg: "Kg",
+  tarjeta: "Tarjeta",
+  MXN: "MXN",
+  otro: "Otro",
 };
 
 export default function AidTypesPage() {
@@ -178,7 +188,7 @@ export default function AidTypesPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Aid Types</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Tipos de Apoyo</h2>
         <p className="mt-2 text-sm text-slate-600">
           Catalogo de tipos de apoyo con unidad de medida y estado activo.
         </p>
@@ -223,7 +233,7 @@ export default function AidTypesPage() {
                 {filteredItems.map((item) => (
                   <tr key={item.id}>
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.unit}</td>
+                    <td className="px-4 py-3 text-slate-700">{unitDisplayMap[item.unit]}</td>
                     <td className="px-4 py-3">{item.active ? "Activo" : "Inactivo"}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
@@ -304,7 +314,7 @@ export default function AidTypesPage() {
               >
                 {aidUnitOptions.map((unit) => (
                   <option key={unit} value={unit}>
-                    {unit}
+                    {unitDisplayMap[unit]}
                   </option>
                 ))}
               </select>

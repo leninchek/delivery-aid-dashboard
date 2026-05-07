@@ -33,6 +33,13 @@ const authorityTypeOptions: AuthorityType[] = [
   "ejidal_commissioner",
 ];
 
+const authorityTypeDisplayMap: Record<AuthorityType, string> = {
+  delegate: "Delegado",
+  sub_delegate: "Subdelegado",
+  mayor: "Alcalde",
+  ejidal_commissioner: "Comisariado Ejidal",
+};
+
 const defaultForm: Omit<Authority, "id"> = {
   type: "delegate",
   name: "",
@@ -228,7 +235,7 @@ export default function AuthoritiesPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Authorities</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Autoridades</h2>
         <p className="mt-2 text-sm text-slate-600">
           Catalogo de autoridades para vincular ciudades y comunidades.
         </p>
@@ -274,7 +281,7 @@ export default function AuthoritiesPage() {
               <tbody className="divide-y divide-slate-200 bg-white">
                 {filteredItems.map((item) => (
                   <tr key={item.id}>
-                    <td className="px-4 py-3 text-slate-700">{item.type}</td>
+                    <td className="px-4 py-3 text-slate-700">{authorityTypeDisplayMap[item.type]}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                     <td className="px-4 py-3 text-slate-700">{item.phone}</td>
                     <td className="px-4 py-3 text-slate-700">{item.curp}</td>
@@ -343,7 +350,7 @@ export default function AuthoritiesPage() {
               >
                 {authorityTypeOptions.map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {authorityTypeDisplayMap[type]}
                   </option>
                 ))}
               </select>

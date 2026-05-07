@@ -258,7 +258,7 @@ export default function CitiesPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Cities</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Ciudades</h2>
         <p className="mt-2 text-sm text-slate-600">
           Catalogo de ciudades con referencias opcionales a autoridades.
         </p>

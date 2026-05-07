@@ -317,7 +317,7 @@ export default function PushCampaignsPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Push Campaigns</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Campañas Push</h2>
         <p className="mt-2 text-sm text-slate-600">
           Crear, enviar y monitorear campañas push para usuarios App.
         </p>

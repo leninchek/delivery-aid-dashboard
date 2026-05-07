@@ -345,7 +345,7 @@ export default function AppUsersPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">App Access</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Acceso a la App</h2>
         <p className="mt-2 text-sm text-slate-600">
           Administracion de cuentas App vinculadas a OrgMembers.
         </p>

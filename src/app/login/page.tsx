@@ -56,7 +56,7 @@ export default function LoginPage() {
     <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-          Delivery Aid
+          Entrega de Apoyos
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
           Iniciar sesion
@@ -68,19 +68,19 @@ export default function LoginPage() {
 
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <label className="block space-y-2 text-sm font-medium text-slate-700">
-          <span>Email</span>
+          <span>Correo electrónico</span>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-0 transition focus:border-slate-900"
-            placeholder="admin@deliveryaid.com"
+            placeholder="admin@entregadeapoyos.com"
             required
           />
         </label>
 
         <label className="block space-y-2 text-sm font-medium text-slate-700">
-          <span>Password</span>
+          <span>Contraseña</span>
           <input
             type="password"
             value={password}

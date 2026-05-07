@@ -303,7 +303,7 @@ export default function CommunitiesPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Communities</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Comunidades</h2>
         <p className="mt-2 text-sm text-slate-600">
           Catalogo de comunidades con relacion opcional a ciudades y autoridades.
         </p>

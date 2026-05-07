@@ -421,7 +421,7 @@ export default function OrgMembersPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Org Members</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Miembros Organizacionales</h2>
         <p className="mt-2 text-sm text-slate-600">
           Gestion del organigrama con jerarquia real por parentId y path.
         </p>

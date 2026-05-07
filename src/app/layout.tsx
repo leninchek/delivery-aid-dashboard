@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Delivery Aid Back Office",
-  description: "Panel de administracion para catalogos, organigrama y operaciones.",
+  title: "Entrega de Apoyos - Back Office",
+  description: "Panel de administración para catálogos, organigrama y operaciones.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-slate-100 text-slate-900">

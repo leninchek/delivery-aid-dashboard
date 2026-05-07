@@ -156,9 +156,9 @@ export default function OrgLevelsPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Org Levels</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Niveles Organizacionales</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Primer CRUD real del Back Office para administrar niveles y capacidades.
+          Catálogo para administrar niveles y capacidades.
         </p>
       </header>
 
@@ -177,30 +177,32 @@ export default function OrgLevelsPage() {
           </div>
 
           <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-slate-500">
+            {/* Table for desktop */}
+            <div className="hidden md:block">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Rank</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Rango</th>
+                  <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">App</th>
-                  <th className="px-4 py-3 font-medium">Capabilities</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Accion</th>
+                  <th className="px-4 py-3 font-medium">Capacidades</th>
+                  <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">Acción</th>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-4 py-3">{item.rank}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
-                    <td className="px-4 py-3">{item.canUseApp ? "Si" : "No"}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {item.capabilities.length > 0
-                        ? item.capabilities.join(", ")
-                        : "Sin capabilities"}
-                    </td>
-                    <td className="px-4 py-3">{item.active ? "Activo" : "Inactivo"}</td>
-                    <td className="px-4 py-3">
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3">{item.rank}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
+                      <td className="px-4 py-3">{item.canUseApp ? "Sí" : "No"}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.capabilities.length > 0
+                          ? item.capabilities.join(", ")
+                          : "Sin capacidades"}
+                      </td>
+                      <td className="px-4 py-3">{item.active ? "Activo" : "Inactivo"}</td>
+                      <td className="px-4 py-3">
                       <button
                         type="button"
                         onClick={() => startEdit(item)}
@@ -208,18 +210,47 @@ export default function OrgLevelsPage() {
                       >
                         Editar
                       </button>
-                    </td>
-                  </tr>
-                ))}
-                {items.length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
-                      No hay niveles cargados aun.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  ))}
+                  {items.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                        No hay niveles cargados aún.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+            {/* Cards for mobile */}
+            <div className="md:hidden space-y-4 p-4">
+              {items.map((item) => (
+                <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{item.name}</h4>
+                      <p className="text-sm text-slate-600">Rango: {item.rank}</p>
+                      <p className="text-sm text-slate-600">App: {item.canUseApp ? "Sí" : "No"}</p>
+                      <p className="text-sm text-slate-600">Estado: {item.active ? "Activo" : "Inactivo"}</p>
+                      <p className="text-sm text-slate-600">
+                        Capacidades: {item.capabilities.length > 0 ? item.capabilities.join(", ") : "Sin capacidades"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {items.length === 0 ? (
+                <p className="text-center text-slate-500 py-8">No hay niveles cargados aún.</p>
+              ) : null}
+            </div>
           </div>
         </article>
 
@@ -246,7 +277,7 @@ export default function OrgLevelsPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Name</span>
+              <span>Nombre</span>
               <input
                 type="text"
                 value={form.name}
@@ -260,7 +291,7 @@ export default function OrgLevelsPage() {
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Rank</span>
+              <span>Rango</span>
               <input
                 type="number"
                 min={1}
@@ -277,7 +308,7 @@ export default function OrgLevelsPage() {
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Capabilities (separadas por coma)</span>
+              <span>Capacidades (separadas por coma)</span>
               <textarea
                 value={form.capabilities}
                 onChange={(event) =>
@@ -324,7 +355,7 @@ export default function OrgLevelsPage() {
 
             {parsedCapabilities.length > 0 ? (
               <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                <p className="font-medium text-slate-700">Preview capabilities</p>
+                <p className="font-medium text-slate-700">Vista previa de capacidades</p>
                 <p className="mt-2">{parsedCapabilities.join(" • ")}</p>
               </div>
             ) : null}

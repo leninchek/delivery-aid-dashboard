@@ -196,7 +196,7 @@ export default function Home() {
   return (
     <section className="space-y-8">
       <div>
-        <h2 className="text-3xl font-semibold tracking-tight">Dashboard</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Panel de Control</h2>
         <p className="mt-2 text-sm text-slate-600">
           Resumen operativo del Back Office (MVP) con metricas en tiempo real.
         </p>

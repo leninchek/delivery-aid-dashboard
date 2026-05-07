@@ -2,33 +2,33 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { AuthProvider, useAuth } from "./auth-provider";
 
 const menuSections = [
   {
     title: "General",
-    links: [{ href: "/", label: "Dashboard" }],
+    links: [{ href: "/", label: "Panel de Control" }],
   },
   {
-    title: "Catalogos",
+    title: "Catálogos",
     links: [
       { href: "/catalogs", label: "Resumen" },
-      { href: "/catalogs/org-levels", label: "Org Levels" },
-      { href: "/catalogs/aid-types", label: "Aid Types" },
-      { href: "/catalogs/authorities", label: "Authorities" },
-      { href: "/catalogs/cities", label: "Cities" },
-      { href: "/catalogs/communities", label: "Communities" },
-      { href: "/catalogs/routes", label: "Routes" },
+      { href: "/catalogs/org-levels", label: "Niveles Organizacionales" },
+      { href: "/catalogs/aid-types", label: "Tipos de Apoyo" },
+      { href: "/catalogs/authorities", label: "Autoridades" },
+      { href: "/catalogs/cities", label: "Ciudades" },
+      { href: "/catalogs/communities", label: "Comunidades" },
+      { href: "/catalogs/routes", label: "Rutas" },
     ],
   },
   {
-    title: "Operacion",
+    title: "Operación",
     links: [
-      { href: "/organization/members", label: "Org Members" },
-      { href: "/access/app-users", label: "App Access" },
-      { href: "/push/campaigns", label: "Push Campaigns" },
+      { href: "/organization/members", label: "Miembros Organizacionales" },
+      { href: "/access/app-users", label: "Acceso App" },
+      { href: "/push/campaigns", label: "Campañas Push" },
     ],
   },
 ];
@@ -44,6 +44,7 @@ function LoginView({ children }: { children: React.ReactNode }) {
 function ProtectedShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const {
     authError,
     isConfigured,
@@ -96,12 +97,29 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
-      <aside className="w-72 border-r border-slate-200 bg-white p-6">
-        <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Delivery Aid
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold">Back Office</h1>
+      {/* Overlay for mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform border-r border-slate-200 bg-white p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      } lg:block`}>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Entrega de Apoyos
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold">Back Office</h1>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="lg:hidden text-slate-500 hover:text-slate-700"
+          >
+            ✕
+          </button>
         </div>
 
         <nav className="space-y-6">
@@ -135,12 +153,20 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-4">
-          <div>
-            <p className="text-sm text-slate-600">
-              Semana 1: Base compartida y estructura de modulos
-            </p>
-            {authError ? <p className="mt-1 text-xs text-rose-600">{authError}</p> : null}
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-8 py-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden text-slate-500 hover:text-slate-700"
+            >
+              ☰
+            </button>
+            <div>
+              <p className="text-sm text-slate-600">
+                Semana 1: Base compartida y estructura de módulos
+              </p>
+              {authError ? <p className="mt-1 text-xs text-rose-600">{authError}</p> : null}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -159,7 +185,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1 p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
