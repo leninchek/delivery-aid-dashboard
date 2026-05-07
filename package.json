@@ -6,21 +6,37 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:org-levels": "tsx scripts/seed-org-levels.ts",
+    "seed:org-levels:dry": "tsx scripts/seed-org-levels.ts --dry-run",
+    "seed:direct-delivery-types": "tsx scripts/seed-direct-delivery-types.ts",
+    "seed:direct-delivery-types:dry": "tsx scripts/seed-direct-delivery-types.ts --dry-run",
+    "seed:cities": "tsx scripts/seed-cities.ts",
+    "seed:communities": "tsx scripts/seed-communities.ts",
+    "seed:aid-types": "tsx scripts/seed-aid-types.ts",
+    "seed:all": "npm run seed:org-levels && npm run seed:direct-delivery-types && npm run seed:cities && npm run seed:communities && npm run seed:aid-types",
+    "seed:all:dry": "npm run seed:org-levels:dry && npm run seed:direct-delivery-types:dry",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "firebase": "^12.12.1",
+    "firebase-admin": "^13.8.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

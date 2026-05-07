@@ -1,0 +1,331 @@
+"use client";
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+
+type RouteItem = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
+const defaultForm: { name: string; description: string } = {
+  name: "",
+  description: "",
+};
+
+export default function RoutesPage() {
+  const [items, setItems] = useState<RouteItem[]>([]);
+  const [form, setForm] = useState(defaultForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const isConfigured = hasFirebaseConfig();
+  const missingVars = getMissingFirebaseEnvVars();
+
+  useEffect(() => {
+    if (!isConfigured) {
+      return;
+    }
+
+    const firestoreDb = getFirestoreDb();
+    if (!firestoreDb) {
+      return;
+    }
+
+    const routesQuery = query(collection(firestoreDb, "Routes"), orderBy("name", "asc"));
+
+    const unsubscribe = onSnapshot(
+      routesQuery,
+      (snapshot) => {
+        setItems(
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            name: item.get("name") || "",
+            description: item.get("description") || "",
+          }))
+        );
+      },
+      (snapshotError) => setError(snapshotError.message)
+    );
+
+    return unsubscribe;
+  }, [isConfigured]);
+
+  const filteredItems = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(normalizedSearch) ||
+        (item.description || "").toLowerCase().includes(normalizedSearch)
+    );
+  }, [items, search]);
+
+  function resetForm() {
+    setForm(defaultForm);
+    setEditingId(null);
+    setError(null);
+  }
+
+  function startEdit(item: RouteItem) {
+    setEditingId(item.id);
+    setForm({
+      name: item.name,
+      description: item.description || "",
+    });
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const firestoreDb = getFirestoreDb();
+    if (!firestoreDb) {
+      setError("Firestore no esta configurado.");
+      return;
+    }
+
+    const normalizedName = form.name.trim();
+    if (!normalizedName) {
+      setError("El nombre de la ruta es obligatorio.");
+      return;
+    }
+
+    const alreadyExists = items.some(
+      (item) =>
+        item.id !== editingId && item.name.trim().toLowerCase() === normalizedName.toLowerCase()
+    );
+
+    if (alreadyExists) {
+      setError("Ya existe una ruta con ese nombre.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const payload = {
+      name: normalizedName,
+      description: form.description.trim() || null,
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      if (editingId) {
+        await updateDoc(doc(firestoreDb, "Routes", editingId), payload);
+      } else {
+        await addDoc(collection(firestoreDb, "Routes"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      resetForm();
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error ? submitError.message : "No fue posible guardar la ruta."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const shouldDelete = window.confirm("Esta accion eliminara la ruta. Confirma para continuar.");
+    if (!shouldDelete) {
+      return;
+    }
+
+    setError(null);
+    setIsDeletingId(id);
+
+    const firestoreDb = getFirestoreDb();
+    if (!firestoreDb) {
+      setError("Firestore no esta configurado.");
+      setIsDeletingId(null);
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(firestoreDb, "Routes", id));
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error ? deleteError.message : "No fue posible eliminar la ruta."
+      );
+    } finally {
+      setIsDeletingId(null);
+    }
+  }
+
+  if (!isConfigured) {
+    return <MissingConfigNotice missingVars={missingVars} />;
+  }
+
+  return (
+    <section className="space-y-8">
+      <header>
+        <h2 className="text-3xl font-semibold tracking-tight">Routes</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Catalogo de rutas operativas para asignacion territorial.
+        </p>
+      </header>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <article className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold">Listado</h3>
+              <p className="text-sm text-slate-600">Busqueda por nombre o descripcion.</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              {filteredItems.length} registros
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-700">
+              Buscar
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+                placeholder="Nombre o descripcion"
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Nombre</th>
+                  <th className="px-4 py-3 font-medium">Descripcion</th>
+                  <th className="px-4 py-3 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {filteredItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
+                    <td className="px-4 py-3 text-slate-700">{item.description || "-"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(item)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(item.id)}
+                          disabled={isDeletingId === item.id}
+                          className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isDeletingId === item.id ? "Eliminando..." : "Eliminar"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
+                      No hay rutas para mostrar.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">
+                {editingId ? "Editar ruta" : "Nueva ruta"}
+              </h3>
+              <p className="text-sm text-slate-600">El nombre de ruta es obligatorio.</p>
+            </div>
+            {editingId ? (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              <span>Nombre</span>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, name: event.target.value }))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+                placeholder="Ruta Norte"
+                required
+              />
+            </label>
+
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              <span>Descripcion (opcional)</span>
+              <textarea
+                value={form.description || ""}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, description: event.target.value }))
+                }
+                rows={4}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+                placeholder="Cobertura territorial o notas operativas"
+              />
+            </label>
+
+            {error ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {isSaving ? "Guardando..." : editingId ? "Actualizar ruta" : "Crear ruta"}
+            </button>
+          </form>
+        </article>
+      </div>
+    </section>
+  );
+}
