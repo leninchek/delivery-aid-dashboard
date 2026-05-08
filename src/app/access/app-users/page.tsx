@@ -325,7 +325,7 @@ export default function AppUsersPage() {
       setForm({
         orgMemberId: "",
         email: "",
-        password: generateTemporaryPassword(),
+        password: "",
       });
     } catch (createError) {
       setError(

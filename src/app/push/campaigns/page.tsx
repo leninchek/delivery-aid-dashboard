@@ -11,6 +11,7 @@ import {
   updateDoc,
   doc,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -257,10 +258,18 @@ export default function PushCampaignsPage() {
         );
       }
 
+      // Get ID token for authorization
+      const user = getAuth().currentUser;
+      if (!user) {
+        throw new Error("Usuario no autenticado.");
+      }
+      const idToken = await user.getIdToken();
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           campaignId: campaignRef.id,
@@ -514,7 +523,7 @@ export default function PushCampaignsPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   Total: {item.stats.total} | Enviados: {item.stats.sent} | Fallidos: {item.stats.failed}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-slate-500" suppressHydrationWarning>
                   Creada: {formatDate(item.createdAt)} | Enviada: {formatDate(item.sentAt)}
                 </p>
               </div>

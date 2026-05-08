@@ -251,7 +251,7 @@ export default function Home() {
                 <p className="font-medium text-slate-900">{item.label}</p>
                 <p className="text-xs text-slate-500">{item.source}</p>
               </div>
-              <p className="text-xs text-slate-500">{formatDate(item.at)}</p>
+              <p className="text-xs text-slate-500" suppressHydrationWarning>{formatDate(item.at)}</p>
             </li>
           ))}
 

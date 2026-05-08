@@ -1,189 +1,44 @@
 "use client";
 
-import {
-  addDoc,
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
-import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import { aidUnitOptions, unitDisplayMap } from "@/lib/utils";
+import type { AidType, AidUnit } from "@/types/shared";
 
-type AidUnit = "pieza" | "paquete" | "litro" | "kg" | "tarjeta" | "MXN" | "otro";
+type AidTypeForm = Pick<AidType, "name" | "unit" | "active">;
 
-type AidType = {
-  id: string;
-  name: string;
-  unit: AidUnit;
-  active: boolean;
-};
-
-const aidUnitOptions: AidUnit[] = ["pieza", "paquete", "litro", "kg", "tarjeta", "MXN", "otro"];
-
-const defaultForm: Pick<AidType, "name" | "unit" | "active"> = {
-  name: "",
-  unit: "pieza",
-  active: true,
-};
-
-const unitDisplayMap: Record<AidUnit, string> = {
-  pieza: "Pieza",
-  paquete: "Paquete",
-  litro: "Litro",
-  kg: "Kg",
-  tarjeta: "Tarjeta",
-  MXN: "MXN",
-  otro: "Otro",
-};
+const defaultForm: AidTypeForm = { name: "", unit: "pieza", active: true };
 
 export default function AidTypesPage() {
-  const [items, setItems] = useState<AidType[]>([]);
-  const [form, setForm] = useState(defaultForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 
-  useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
-
-    const firestoreDb = getFirestoreDb();
-
-    if (!firestoreDb) {
-      return;
-    }
-
-    const aidTypesQuery = query(collection(firestoreDb, "AidTypes"), orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      aidTypesQuery,
-      (snapshot) => {
-        setItems(
-          snapshot.docs.map((item) => ({
-            id: item.id,
-            name: item.get("name") || "",
-            unit: (item.get("unit") || "other") as AidUnit,
-            active: item.get("active") ?? true,
-          }))
-        );
-      },
-      (snapshotError) => {
-        setError(snapshotError.message);
-      }
-    );
-
-    return unsubscribe;
-  }, [isConfigured]);
+  const {
+    items, form, setForm, editingId,
+    isSaving, error, search, setSearch,
+    resetForm, startEdit, handleSubmit, handleToggleActive,
+  } = useCatalogCrud<AidType, AidTypeForm>({
+    collectionName: "AidTypes",
+    defaultForm,
+    mapDocToItem: (item) => ({
+      id: item.id,
+      name: item.get("name") || "",
+      unit: (item.get("unit") || "pieza") as AidUnit,
+      active: item.get("active") ?? true,
+    }),
+    mapItemToForm: (item) => ({ name: item.name, unit: item.unit, active: item.active }),
+    mapFormToFirestore: (f) => ({ name: f.name.trim(), unit: f.unit, active: f.active }),
+    validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
+  });
 
   const filteredItems = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((item) => item.name.toLowerCase().includes(normalizedSearch));
+    const q = search.trim().toLowerCase();
+    return q ? items.filter((i) => i.name.toLowerCase().includes(q)) : items;
   }, [items, search]);
 
-  function resetForm() {
-    setForm(defaultForm);
-    setEditingId(null);
-    setError(null);
-  }
-
-  function startEdit(item: AidType) {
-    setEditingId(item.id);
-    setForm({
-      name: item.name,
-      unit: item.unit,
-      active: item.active,
-    });
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const firestoreDb = getFirestoreDb();
-
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      return;
-    }
-
-    if (!form.name.trim()) {
-      setError("El nombre es obligatorio.");
-      return;
-    }
-
-    setIsSaving(true);
-
-    const payload = {
-      name: form.name.trim(),
-      unit: form.unit,
-      active: form.active,
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      if (editingId) {
-        await updateDoc(doc(firestoreDb, "AidTypes", editingId), payload);
-      } else {
-        await addDoc(collection(firestoreDb, "AidTypes"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      resetForm();
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No fue posible guardar el tipo de apoyo."
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function toggleStatus(item: AidType) {
-    setError(null);
-
-    const firestoreDb = getFirestoreDb();
-
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      return;
-    }
-
-    try {
-      await updateDoc(doc(firestoreDb, "AidTypes", item.id), {
-        active: !item.active,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (toggleError) {
-      setError(
-        toggleError instanceof Error
-          ? toggleError.message
-          : "No fue posible actualizar el estado."
-      );
-    }
-  }
-
-  if (!isConfigured) {
-    return <MissingConfigNotice missingVars={missingVars} />;
-  }
+  if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
     <section className="space-y-8">
@@ -212,7 +67,7 @@ export default function AidTypesPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Despensa, Medicamento, ..."
               />
@@ -246,7 +101,7 @@ export default function AidTypesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void toggleStatus(item)}
+                          onClick={() => void handleToggleActive(item)}
                           className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                         >
                           {item.active ? "Desactivar" : "Activar"}
@@ -255,13 +110,13 @@ export default function AidTypesPage() {
                     </td>
                   </tr>
                 ))}
-                {filteredItems.length === 0 ? (
+                {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
                       No hay tipos de apoyo para mostrar.
                     </td>
                   </tr>
-                ) : null}
+                )}
               </tbody>
             </table>
           </div>
@@ -273,11 +128,9 @@ export default function AidTypesPage() {
               <h3 className="text-lg font-semibold">
                 {editingId ? "Editar tipo de apoyo" : "Nuevo tipo de apoyo"}
               </h3>
-              <p className="text-sm text-slate-600">
-                Define nombre, unidad y estado operativo.
-              </p>
+              <p className="text-sm text-slate-600">Define nombre, unidad y estado operativo.</p>
             </div>
-            {editingId ? (
+            {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
@@ -285,18 +138,16 @@ export default function AidTypesPage() {
               >
                 Cancelar
               </button>
-            ) : null}
+            )}
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Nombre</span>
               <input
                 type="text"
                 value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Despensa"
                 required
@@ -307,15 +158,11 @@ export default function AidTypesPage() {
               <span>Unidad</span>
               <select
                 value={form.unit}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, unit: event.target.value as AidUnit }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, unit: e.target.value as AidUnit }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 {aidUnitOptions.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unitDisplayMap[unit]}
-                  </option>
+                  <option key={unit} value={unit}>{unitDisplayMap[unit]}</option>
                 ))}
               </select>
             </label>
@@ -324,30 +171,24 @@ export default function AidTypesPage() {
               <input
                 type="checkbox"
                 checked={form.active}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, active: event.target.checked }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, active: e.target.checked }))}
                 className="h-4 w-4 rounded border-slate-300"
               />
               Activo
             </label>
 
-            {error ? (
+            {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {error}
               </p>
-            ) : null}
+            )}
 
             <button
               type="submit"
               disabled={isSaving}
               className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSaving
-                ? "Guardando..."
-                : editingId
-                  ? "Actualizar tipo de apoyo"
-                  : "Crear tipo de apoyo"}
+              {isSaving ? "Guardando..." : editingId ? "Actualizar tipo de apoyo" : "Crear tipo de apoyo"}
             </button>
           </form>
         </article>

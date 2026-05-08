@@ -14,7 +14,6 @@ const menuSections = [
   {
     title: "Catálogos",
     links: [
-      { href: "/catalogs", label: "Resumen" },
       { href: "/catalogs/org-levels", label: "Niveles Organizacionales" },
       { href: "/catalogs/aid-types", label: "Tipos de Apoyo" },
       { href: "/catalogs/authorities", label: "Autoridades" },
@@ -87,7 +86,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !sessionUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100" suppressHydrationWarning>
         <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-600">
           Validando sesion...
         </div>
@@ -96,12 +95,13 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1440px]" suppressHydrationWarning>
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
+          suppressHydrationWarning
         />
       )}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform border-r border-slate-200 bg-white p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${

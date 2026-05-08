@@ -1,186 +1,62 @@
 "use client";
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
-import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import type { RouteItem } from "@/types/shared";
 
-type RouteItem = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+type RouteForm = { name: string; description: string };
 
-const defaultForm: { name: string; description: string } = {
-  name: "",
-  description: "",
-};
+const defaultForm: RouteForm = { name: "", description: "" };
 
 export default function RoutesPage() {
-  const [items, setItems] = useState<RouteItem[]>([]);
-  const [form, setForm] = useState(defaultForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 
-  useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      return;
-    }
-
-    const routesQuery = query(collection(firestoreDb, "Routes"), orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      routesQuery,
-      (snapshot) => {
-        setItems(
-          snapshot.docs.map((item) => ({
-            id: item.id,
-            name: item.get("name") || "",
-            description: item.get("description") || "",
-          }))
-        );
-      },
-      (snapshotError) => setError(snapshotError.message)
-    );
-
-    return unsubscribe;
-  }, [isConfigured]);
+  const {
+    items, form, setForm, editingId,
+    isSaving, isDeletingId, error, search, setSearch,
+    resetForm, startEdit, handleSubmit, handleDelete,
+  } = useCatalogCrud<RouteItem, RouteForm>({
+    collectionName: "Routes",
+    defaultForm,
+    mapDocToItem: (item) => ({
+      id: item.id,
+      name: item.get("name") || "",
+      description: item.get("description") || null,
+    }),
+    mapItemToForm: (item) => ({ name: item.name, description: item.description || "" }),
+    mapFormToFirestore: (f) => ({
+      name: f.name.trim(),
+      description: f.description.trim() || null,
+    }),
+    validate: (f, editingId, items) => {
+      if (!f.name.trim()) return "El nombre de la ruta es obligatorio.";
+      const duplicate = items.some(
+        (i) => i.id !== editingId && i.name.trim().toLowerCase() === f.name.trim().toLowerCase(),
+      );
+      return duplicate ? "Ya existe una ruta con ese nombre." : null;
+    },
+  });
 
   const filteredItems = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(normalizedSearch) ||
-        (item.description || "").toLowerCase().includes(normalizedSearch)
-    );
+    const q = search.trim().toLowerCase();
+    return q
+      ? items.filter(
+          (i) =>
+            i.name.toLowerCase().includes(q) ||
+            (i.description || "").toLowerCase().includes(q),
+        )
+      : items;
   }, [items, search]);
 
-  function resetForm() {
-    setForm(defaultForm);
-    setEditingId(null);
-    setError(null);
+  async function confirmDelete(id: string) {
+    if (!window.confirm("Esta accion eliminara la ruta. Confirma para continuar.")) return;
+    await handleDelete(id);
   }
 
-  function startEdit(item: RouteItem) {
-    setEditingId(item.id);
-    setForm({
-      name: item.name,
-      description: item.description || "",
-    });
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      return;
-    }
-
-    const normalizedName = form.name.trim();
-    if (!normalizedName) {
-      setError("El nombre de la ruta es obligatorio.");
-      return;
-    }
-
-    const alreadyExists = items.some(
-      (item) =>
-        item.id !== editingId && item.name.trim().toLowerCase() === normalizedName.toLowerCase()
-    );
-
-    if (alreadyExists) {
-      setError("Ya existe una ruta con ese nombre.");
-      return;
-    }
-
-    setIsSaving(true);
-
-    const payload = {
-      name: normalizedName,
-      description: form.description.trim() || null,
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      if (editingId) {
-        await updateDoc(doc(firestoreDb, "Routes", editingId), payload);
-      } else {
-        await addDoc(collection(firestoreDb, "Routes"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      resetForm();
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : "No fue posible guardar la ruta."
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    const shouldDelete = window.confirm("Esta accion eliminara la ruta. Confirma para continuar.");
-    if (!shouldDelete) {
-      return;
-    }
-
-    setError(null);
-    setIsDeletingId(id);
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      setIsDeletingId(null);
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(firestoreDb, "Routes", id));
-      if (editingId === id) {
-        resetForm();
-      }
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error ? deleteError.message : "No fue posible eliminar la ruta."
-      );
-    } finally {
-      setIsDeletingId(null);
-    }
-  }
-
-  if (!isConfigured) {
-    return <MissingConfigNotice missingVars={missingVars} />;
-  }
+  if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
     <section className="space-y-8">
@@ -209,7 +85,7 @@ export default function RoutesPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Nombre o descripcion"
               />
@@ -241,7 +117,7 @@ export default function RoutesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleDelete(item.id)}
+                          onClick={() => void confirmDelete(item.id)}
                           disabled={isDeletingId === item.id}
                           className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -251,13 +127,13 @@ export default function RoutesPage() {
                     </td>
                   </tr>
                 ))}
-                {filteredItems.length === 0 ? (
+                {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
                       No hay rutas para mostrar.
                     </td>
                   </tr>
-                ) : null}
+                )}
               </tbody>
             </table>
           </div>
@@ -271,7 +147,7 @@ export default function RoutesPage() {
               </h3>
               <p className="text-sm text-slate-600">El nombre de ruta es obligatorio.</p>
             </div>
-            {editingId ? (
+            {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
@@ -279,18 +155,16 @@ export default function RoutesPage() {
               >
                 Cancelar
               </button>
-            ) : null}
+            )}
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Nombre</span>
               <input
                 type="text"
                 value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Ruta Norte"
                 required
@@ -300,21 +174,19 @@ export default function RoutesPage() {
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Descripcion (opcional)</span>
               <textarea
-                value={form.description || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, description: event.target.value }))
-                }
+                value={form.description}
+                onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
                 rows={4}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Cobertura territorial o notas operativas"
               />
             </label>
 
-            {error ? (
+            {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {error}
               </p>
-            ) : null}
+            )}
 
             <button
               type="submit"

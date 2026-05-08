@@ -1,45 +1,17 @@
 "use client";
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
-import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { getFirestoreDb } from "@/lib/firebase";
+import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import { toNullableId } from "@/lib/utils";
+import type { Authority, City, Community } from "@/types/shared";
 
-type AuthorityType = "delegate" | "sub_delegate" | "mayor" | "ejidal_commissioner";
+type CommunityForm = Omit<Community, "id">;
 
-type Authority = {
-  id: string;
-  type: AuthorityType;
-  name: string;
-};
-
-type City = {
-  id: string;
-  name: string;
-  state: string;
-};
-
-type Community = {
-  id: string;
-  name: string;
-  cityId: string | null;
-  delegateId: string | null;
-  subDelegateId: string | null;
-  mayorId: string | null;
-  ejidalCommissionerId: string | null;
-};
-
-const defaultForm: Omit<Community, "id"> = {
+const defaultForm: CommunityForm = {
   name: "",
   cityId: null,
   delegateId: null,
@@ -48,257 +20,116 @@ const defaultForm: Omit<Community, "id"> = {
   ejidalCommissionerId: null,
 };
 
-function toNullableId(value: string): string | null {
-  return value ? value : null;
-}
-
 export default function CommunitiesPage() {
-  const [items, setItems] = useState<Community[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [authorities, setAuthorities] = useState<Authority[]>([]);
-  const [form, setForm] = useState(defaultForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 
-  useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
+  const [cities, setCities] = useState<City[]>([]);
+  const [authorities, setAuthorities] = useState<Authority[]>([]);
+  const [cityFilter, setCityFilter] = useState("");
 
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      return;
-    }
-
-    const communitiesQuery = query(collection(firestoreDb, "Communities"), orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      communitiesQuery,
-      (snapshot) => {
-        setItems(
-          snapshot.docs.map((item) => ({
-            id: item.id,
-            name: item.get("name") || "",
-            cityId: item.get("cityId") || null,
-            delegateId: item.get("delegateId") || null,
-            subDelegateId: item.get("subDelegateId") || null,
-            mayorId: item.get("mayorId") || null,
-            ejidalCommissionerId: item.get("ejidalCommissionerId") || null,
-          }))
-        );
-      },
-      (snapshotError) => setError(snapshotError.message)
-    );
-
-    return unsubscribe;
-  }, [isConfigured]);
-
-  useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      return;
-    }
-
-    const citiesQuery = query(collection(firestoreDb, "Cities"), orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      citiesQuery,
-      (snapshot) => {
-        setCities(
-          snapshot.docs.map((item) => ({
-            id: item.id,
-            name: item.get("name") || "",
-            state: item.get("state") || "",
-          }))
-        );
-      },
-      (snapshotError) => setError(snapshotError.message)
-    );
-
-    return unsubscribe;
-  }, [isConfigured]);
-
-  useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      return;
-    }
-
-    const authoritiesQuery = query(collection(firestoreDb, "Authorities"), orderBy("name", "asc"));
-
-    const unsubscribe = onSnapshot(
-      authoritiesQuery,
-      (snapshot) => {
-        setAuthorities(
-          snapshot.docs.map((item) => ({
-            id: item.id,
-            type: (item.get("type") || "delegate") as AuthorityType,
-            name: item.get("name") || "",
-          }))
-        );
-      },
-      (snapshotError) => setError(snapshotError.message)
-    );
-
-    return unsubscribe;
-  }, [isConfigured]);
-
-  const cityNameById = useMemo(
-    () => new Map(cities.map((city) => [city.id, `${city.name} (${city.state})`])),
-    [cities]
-  );
-  const authorityNameById = useMemo(
-    () => new Map(authorities.map((authority) => [authority.id, authority.name])),
-    [authorities]
-  );
-
-  const delegates = useMemo(
-    () => authorities.filter((authority) => authority.type === "delegate"),
-    [authorities]
-  );
-  const subDelegates = useMemo(
-    () => authorities.filter((authority) => authority.type === "sub_delegate"),
-    [authorities]
-  );
-  const mayors = useMemo(
-    () => authorities.filter((authority) => authority.type === "mayor"),
-    [authorities]
-  );
-  const ejidalCommissioners = useMemo(
-    () => authorities.filter((authority) => authority.type === "ejidal_commissioner"),
-    [authorities]
-  );
-
-  const filteredItems = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return items.filter((item) => {
-      const matchesSearch =
-        !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
-      const matchesCity = !cityFilter || item.cityId === cityFilter;
-      return matchesSearch && matchesCity;
-    });
-  }, [cityFilter, items, search]);
-
-  function resetForm() {
-    setForm(defaultForm);
-    setEditingId(null);
-    setError(null);
-  }
-
-  function startEdit(item: Community) {
-    setEditingId(item.id);
-    setForm({
+  const {
+    items, form, setForm, editingId,
+    isSaving, isDeletingId, error, search, setSearch,
+    resetForm, startEdit, handleSubmit, handleDelete,
+  } = useCatalogCrud<Community, CommunityForm>({
+    collectionName: "Communities",
+    defaultForm,
+    mapDocToItem: (item) => ({
+      id: item.id,
+      name: item.get("name") || "",
+      cityId: item.get("cityId") || null,
+      delegateId: item.get("delegateId") || null,
+      subDelegateId: item.get("subDelegateId") || null,
+      mayorId: item.get("mayorId") || null,
+      ejidalCommissionerId: item.get("ejidalCommissionerId") || null,
+    }),
+    mapItemToForm: (item) => ({
       name: item.name,
       cityId: item.cityId,
       delegateId: item.delegateId,
       subDelegateId: item.subDelegateId,
       mayorId: item.mayorId,
       ejidalCommissionerId: item.ejidalCommissionerId,
-    });
-  }
+    }),
+    mapFormToFirestore: (f) => ({
+      name: f.name.trim(),
+      cityId: f.cityId,
+      delegateId: f.delegateId,
+      subDelegateId: f.subDelegateId,
+      mayorId: f.mayorId,
+      ejidalCommissionerId: f.ejidalCommissionerId,
+    }),
+    validate: (f) => (!f.name.trim() ? "El nombre de la comunidad es obligatorio." : null),
+  });
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      return;
-    }
-
-    if (!form.name.trim()) {
-      setError("Completa el nombre de la comunidad.");
-      return;
-    }
-
-    setIsSaving(true);
-
-    const payload = {
-      name: form.name.trim(),
-      cityId: form.cityId,
-      delegateId: form.delegateId,
-      subDelegateId: form.subDelegateId,
-      mayorId: form.mayorId,
-      ejidalCommissionerId: form.ejidalCommissionerId,
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      if (editingId) {
-        await updateDoc(doc(firestoreDb, "Communities", editingId), payload);
-      } else {
-        await addDoc(collection(firestoreDb, "Communities"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      resetForm();
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No fue posible guardar la comunidad."
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    const shouldDelete = window.confirm(
-      "Esta accion eliminara la comunidad. Confirma para continuar."
+  useEffect(() => {
+    const db = getFirestoreDb();
+    if (!db) return;
+    const q = query(collection(db, "Cities"), orderBy("name", "asc"));
+    const unsub = onSnapshot(q, (snap) =>
+      setCities(
+        snap.docs.map((d) => ({
+          id: d.id,
+          name: d.get("name") || "",
+          state: d.get("state") || "",
+          delegateId: d.get("delegateId") || null,
+          subDelegateId: d.get("subDelegateId") || null,
+          mayorId: d.get("mayorId") || null,
+          ejidalCommissionerId: d.get("ejidalCommissionerId") || null,
+        }))
+      )
     );
-    if (!shouldDelete) {
-      return;
-    }
+    return () => unsub();
+  }, []);
 
-    setError(null);
-    setIsDeletingId(id);
+  useEffect(() => {
+    const db = getFirestoreDb();
+    if (!db) return;
+    const q = query(collection(db, "Authorities"), orderBy("name", "asc"));
+    const unsub = onSnapshot(q, (snap) =>
+      setAuthorities(
+        snap.docs.map((d) => ({
+          id: d.id,
+          type: d.get("type") || "delegate",
+          name: d.get("name") || "",
+          phone: d.get("phone") || "",
+          curp: d.get("curp") || "",
+          birthDate: d.get("birthDate") || "",
+        }))
+      )
+    );
+    return () => unsub();
+  }, []);
 
-    const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
-      setIsDeletingId(null);
-      return;
-    }
+  const cityNameById = useMemo(
+    () => new Map(cities.map((c) => [c.id, `${c.name} (${c.state})`])),
+    [cities]
+  );
+  const authorityNameById = useMemo(
+    () => new Map(authorities.map((a) => [a.id, a.name])),
+    [authorities]
+  );
+  const delegates = useMemo(() => authorities.filter((a) => a.type === "delegate"), [authorities]);
+  const subDelegates = useMemo(() => authorities.filter((a) => a.type === "sub_delegate"), [authorities]);
+  const mayors = useMemo(() => authorities.filter((a) => a.type === "mayor"), [authorities]);
+  const ejidalCommissioners = useMemo(() => authorities.filter((a) => a.type === "ejidal_commissioner"), [authorities]);
 
-    try {
-      await deleteDoc(doc(firestoreDb, "Communities", id));
-      if (editingId === id) {
-        resetForm();
-      }
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "No fue posible eliminar la comunidad."
-      );
-    } finally {
-      setIsDeletingId(null);
-    }
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((i) => {
+      const matchesSearch = !q || i.name.toLowerCase().includes(q);
+      const matchesCity = !cityFilter || i.cityId === cityFilter;
+      return matchesSearch && matchesCity;
+    });
+  }, [items, search, cityFilter]);
+
+  async function confirmDelete(id: string) {
+    if (!window.confirm("Esta accion eliminara la comunidad. Confirma para continuar.")) return;
+    await handleDelete(id);
   }
 
-  if (!isConfigured) {
-    return <MissingConfigNotice missingVars={missingVars} />;
-  }
+  if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
     <section className="space-y-8">
@@ -327,7 +158,7 @@ export default function CommunitiesPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Nombre de comunidad"
               />
@@ -337,14 +168,12 @@ export default function CommunitiesPage() {
               Filtrar por ciudad
               <select
                 value={cityFilter}
-                onChange={(event) => setCityFilter(event.target.value)}
+                onChange={(e) => setCityFilter(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Todas</option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name} ({city.state})
-                  </option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.state})</option>
                 ))}
               </select>
             </label>
@@ -356,8 +185,8 @@ export default function CommunitiesPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">Ciudad</th>
-                  <th className="px-4 py-3 font-medium">Delegate</th>
-                  <th className="px-4 py-3 font-medium">Mayor</th>
+                  <th className="px-4 py-3 font-medium">Delegado</th>
+                  <th className="px-4 py-3 font-medium">Presidente</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -366,13 +195,13 @@ export default function CommunitiesPage() {
                   <tr key={item.id}>
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                     <td className="px-4 py-3 text-slate-700">
-                      {item.cityId ? cityNameById.get(item.cityId) || "-" : "-"}
+                      {item.cityId ? (cityNameById.get(item.cityId) ?? "-") : "-"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {item.delegateId ? authorityNameById.get(item.delegateId) || "-" : "-"}
+                      {item.delegateId ? (authorityNameById.get(item.delegateId) ?? "-") : "-"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {item.mayorId ? authorityNameById.get(item.mayorId) || "-" : "-"}
+                      {item.mayorId ? (authorityNameById.get(item.mayorId) ?? "-") : "-"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
@@ -385,7 +214,7 @@ export default function CommunitiesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleDelete(item.id)}
+                          onClick={() => void confirmDelete(item.id)}
                           disabled={isDeletingId === item.id}
                           className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -395,13 +224,13 @@ export default function CommunitiesPage() {
                     </td>
                   </tr>
                 ))}
-                {filteredItems.length === 0 ? (
+                {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
                       No hay comunidades para mostrar.
                     </td>
                   </tr>
-                ) : null}
+                )}
               </tbody>
             </table>
           </div>
@@ -415,7 +244,7 @@ export default function CommunitiesPage() {
               </h3>
               <p className="text-sm text-slate-600">El nombre es obligatorio.</p>
             </div>
-            {editingId ? (
+            {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
@@ -423,18 +252,16 @@ export default function CommunitiesPage() {
               >
                 Cancelar
               </button>
-            ) : null}
+            )}
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Nombre</span>
               <input
                 type="text"
                 value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 placeholder="Comunidad Ejemplo"
                 required
@@ -445,114 +272,84 @@ export default function CommunitiesPage() {
               <span>Ciudad (opcional)</span>
               <select
                 value={form.cityId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, cityId: toNullableId(event.target.value) }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, cityId: toNullableId(e.target.value) }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Sin asignar</option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name} ({city.state})
-                  </option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.state})</option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Delegate (opcional)</span>
+              <span>Delegado (opcional)</span>
               <select
                 value={form.delegateId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, delegateId: toNullableId(event.target.value) }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, delegateId: toNullableId(e.target.value) }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Sin asignar</option>
-                {delegates.map((authority) => (
-                  <option key={authority.id} value={authority.id}>
-                    {authority.name}
-                  </option>
+                {delegates.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Sub Delegate (opcional)</span>
+              <span>Sub Delegado (opcional)</span>
               <select
                 value={form.subDelegateId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    subDelegateId: toNullableId(event.target.value),
-                  }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, subDelegateId: toNullableId(e.target.value) }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Sin asignar</option>
-                {subDelegates.map((authority) => (
-                  <option key={authority.id} value={authority.id}>
-                    {authority.name}
-                  </option>
+                {subDelegates.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Mayor (opcional)</span>
+              <span>Presidente (opcional)</span>
               <select
                 value={form.mayorId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, mayorId: toNullableId(event.target.value) }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, mayorId: toNullableId(e.target.value) }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Sin asignar</option>
-                {mayors.map((authority) => (
-                  <option key={authority.id} value={authority.id}>
-                    {authority.name}
-                  </option>
+                {mayors.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Ejidal Commissioner (opcional)</span>
+              <span>Comisario Ejidal (opcional)</span>
               <select
                 value={form.ejidalCommissionerId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    ejidalCommissionerId: toNullableId(event.target.value),
-                  }))
-                }
+                onChange={(e) => setForm((c) => ({ ...c, ejidalCommissionerId: toNullableId(e.target.value) }))}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
                 <option value="">Sin asignar</option>
-                {ejidalCommissioners.map((authority) => (
-                  <option key={authority.id} value={authority.id}>
-                    {authority.name}
-                  </option>
+                {ejidalCommissioners.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             </label>
 
-            {error ? (
+            {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {error}
               </p>
-            ) : null}
+            )}
 
             <button
               type="submit"
               disabled={isSaving}
               className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSaving
-                ? "Guardando..."
-                : editingId
-                  ? "Actualizar comunidad"
-                  : "Crear comunidad"}
+              {isSaving ? "Guardando..." : editingId ? "Actualizar comunidad" : "Crear comunidad"}
             </button>
           </form>
         </article>
