@@ -17,6 +17,9 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 
+const MAX_TITLE = 50;
+const MAX_BODY = 150;
+
 type CampaignTarget = "all_app_users" | "level_ids";
 type CampaignStatus = "draft" | "scheduled" | "sent" | "partial_failed" | "failed";
 
@@ -73,30 +76,16 @@ const defaultForm: CampaignForm = {
 };
 
 function asDate(value: unknown): Date | null {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  if (value instanceof Timestamp) {
-    return value.toDate();
-  }
-
-  if (typeof value === "object" && value !== null && "toDate" in value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (value instanceof Timestamp) return value.toDate();
+  if (typeof value === "object" && value !== null && "toDate" in value)
     return (value as { toDate: () => Date }).toDate();
-  }
-
   return null;
 }
 
 function formatDate(value: Date | null): string {
-  if (!value) {
-    return "-";
-  }
-
+  if (!value) return "-";
   return new Intl.DateTimeFormat("es-MX", {
     day: "2-digit",
     month: "short",
@@ -104,6 +93,59 @@ function formatDate(value: Date | null): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(value);
+}
+
+function CharCount({ current, max }: { current: number; max: number }) {
+  const ratio = current / max;
+  const color =
+    ratio >= 1 ? "text-rose-600 font-semibold" : ratio >= 0.8 ? "text-amber-600" : "text-slate-400";
+  return <span className={`text-xs tabular-nums ${color}`}>{current}/{max}</span>;
+}
+
+function NotificationPreview({ title, body }: { title: string; body: string }) {
+  const displayTitle = title.trim() || "Título de la notificación";
+  const displayBody  = body.trim()  || "El mensaje de tu notificación aparecerá aquí.";
+
+  const visibleTitle = displayTitle.length > MAX_TITLE
+    ? displayTitle.slice(0, MAX_TITLE) + "…"
+    : displayTitle;
+  const visibleBody = displayBody.length > MAX_BODY
+    ? displayBody.slice(0, MAX_BODY) + "…"
+    : displayBody;
+
+  const titleIsPlaceholder = !title.trim();
+  const bodyIsPlaceholder  = !body.trim();
+
+  return (
+    <div className="rounded-xl bg-slate-800 px-4 pt-4 pb-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-slate-400">Vista previa — Android</span>
+        <span className="text-xs text-slate-500">9:41</span>
+      </div>
+
+      <div className="rounded-2xl bg-white/95 px-3.5 py-3 shadow-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-slate-900">
+            <span className="text-[8px] font-bold text-white">D</span>
+          </div>
+          <span className="text-xs font-medium text-slate-500">Delivery Aid</span>
+          <span className="ml-auto text-xs text-slate-400">ahora</span>
+        </div>
+        <p className={`text-sm font-semibold leading-tight ${titleIsPlaceholder ? "text-slate-400" : "text-slate-900"}`}>
+          {visibleTitle}
+        </p>
+        <p className={`mt-0.5 text-xs leading-snug ${bodyIsPlaceholder ? "text-slate-400" : "text-slate-600"}`}>
+          {visibleBody}
+        </p>
+      </div>
+
+      {(title.length > MAX_TITLE || body.length > MAX_BODY) && (
+        <p className="mt-2.5 text-xs text-amber-400">
+          El texto marcado en rojo se truncará en el dispositivo.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function PushCampaignsPage() {
@@ -121,14 +163,9 @@ export default function PushCampaignsPage() {
   const isAdmin = sessionUser?.backofficeRole === "admin";
 
   useEffect(() => {
-    if (!isConfigured) {
-      return;
-    }
-
+    if (!isConfigured) return;
     const firestoreDb = getFirestoreDb();
-    if (!firestoreDb) {
-      return;
-    }
+    if (!firestoreDb) return;
 
     const unsubscribers = [
       onSnapshot(
@@ -168,22 +205,22 @@ export default function PushCampaignsPage() {
       ),
     ];
 
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-    };
+    return () => unsubscribers.forEach((u) => u());
   }, [isConfigured]);
 
-  const totals = useMemo(() => {
-    return items.reduce(
-      (acc, item) => {
-        acc.total += item.stats.total;
-        acc.sent += item.stats.sent;
-        acc.failed += item.stats.failed;
-        return acc;
-      },
-      { total: 0, sent: 0, failed: 0 }
-    );
-  }, [items]);
+  const totals = useMemo(
+    () =>
+      items.reduce(
+        (acc, item) => {
+          acc.total += item.stats.total;
+          acc.sent  += item.stats.sent;
+          acc.failed += item.stats.failed;
+          return acc;
+        },
+        { total: 0, sent: 0, failed: 0 }
+      ),
+    [items]
+  );
 
   function resetForm() {
     setForm(defaultForm);
@@ -238,11 +275,7 @@ export default function PushCampaignsPage() {
         scheduledAt: null,
         sentAt: null,
         createdBy: sessionUser?.uid || null,
-        stats: {
-          total: 0,
-          sent: 0,
-          failed: 0,
-        },
+        stats: { total: 0, sent: 0, failed: 0 },
         payload: {
           screen: form.screen.trim() || null,
           entityId: form.entityId.trim() || null,
@@ -271,18 +304,15 @@ export default function PushCampaignsPage() {
         );
       }
 
-      // Get ID token for authorization
       const user = getAuth().currentUser;
-      if (!user) {
-        throw new Error("Usuario no autenticado.");
-      }
+      if (!user) throw new Error("Usuario no autenticado.");
       const idToken = await user.getIdToken();
 
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           campaignId: campaignRef.id,
@@ -332,9 +362,7 @@ export default function PushCampaignsPage() {
     }
   }
 
-  if (!isConfigured) {
-    return <MissingConfigNotice missingVars={missingVars} />;
-  }
+  if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
     <section className="space-y-8">
@@ -386,8 +414,12 @@ export default function PushCampaignsPage() {
               void submitCampaign("send");
             }}
           >
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Título</span>
+            {/* Title */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">Título</label>
+                <CharCount current={form.title.length} max={MAX_TITLE} />
+              </div>
               <input
                 type="text"
                 value={form.title}
@@ -397,21 +429,29 @@ export default function PushCampaignsPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 required
               />
-            </label>
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Mensaje</span>
+            {/* Body */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">Mensaje</label>
+                <CharCount current={form.body.length} max={MAX_BODY} />
+              </div>
               <textarea
                 value={form.body}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, body: event.target.value }))
                 }
-                rows={4}
+                rows={3}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
                 required
               />
-            </label>
+            </div>
 
+            {/* Live preview */}
+            <NotificationPreview title={form.title} body={form.body} />
+
+            {/* Target */}
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Target</span>
               <select
@@ -431,7 +471,7 @@ export default function PushCampaignsPage() {
               </select>
             </label>
 
-            {form.target === "level_ids" ? (
+            {form.target === "level_ids" && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <p className="text-sm font-medium text-slate-700">Selecciona niveles destino</p>
                 <div className="mt-3 grid gap-2">
@@ -446,12 +486,12 @@ export default function PushCampaignsPage() {
                       {level.name}
                     </label>
                   ))}
-                  {levels.length === 0 ? (
+                  {levels.length === 0 && (
                     <p className="text-xs text-slate-500">No hay niveles disponibles.</p>
-                  ) : null}
+                  )}
                 </div>
               </div>
-            ) : null}
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block space-y-2 text-sm font-medium text-slate-700">
@@ -481,17 +521,17 @@ export default function PushCampaignsPage() {
               </label>
             </div>
 
-            {error ? (
+            {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 {error}
               </p>
-            ) : null}
+            )}
 
-            {success ? (
+            {success && (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 {success}
               </p>
-            ) : null}
+            )}
 
             <div className="grid gap-2 md:grid-cols-2">
               <button
@@ -529,9 +569,7 @@ export default function PushCampaignsPage() {
                 <p className="mt-1 text-sm text-slate-600">{item.body}</p>
                 <p className="mt-2 text-xs text-slate-500">
                   Destino: {targetDisplayMap[item.target]}
-                  {item.targetLevelIds.length > 0
-                    ? ` (${item.targetLevelIds.length} niveles)`
-                    : ""}
+                  {item.targetLevelIds.length > 0 ? ` (${item.targetLevelIds.length} niveles)` : ""}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Total: {item.stats.total} | Enviados: {item.stats.sent} | Fallidos: {item.stats.failed}
@@ -542,11 +580,11 @@ export default function PushCampaignsPage() {
               </div>
             ))}
 
-            {items.length === 0 ? (
+            {items.length === 0 && (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                 Aún no hay campañas registradas.
               </p>
-            ) : null}
+            )}
           </div>
         </article>
       </div>

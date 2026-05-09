@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
@@ -11,15 +10,30 @@ type OrgLevelForm = {
   name: string;
   rank: number;
   canUseApp: boolean;
-  capabilities: string;
+  capabilities: string[];
   active: boolean;
 };
+
+const CAPABILITIES: { key: string; label: string }[] = [
+  { key: "can_create_direct_delivery",   label: "Registrar entrega directa" },
+  { key: "can_create_indirect_delivery", label: "Registrar entrega indirecta" },
+  { key: "can_register_promoted",        label: "Registrar promovidos" },
+  { key: "can_view_own_deliveries",      label: "Ver propias entregas" },
+  { key: "can_view_own_promoted",        label: "Ver propios promovidos" },
+  { key: "can_edit_own_promoted",        label: "Editar propios promovidos" },
+  { key: "can_delete_own_promoted",      label: "Eliminar propios promovidos" },
+  { key: "can_view_notifications",       label: "Ver notificaciones" },
+];
+
+const CAPABILITY_LABELS: Record<string, string> = Object.fromEntries(
+  CAPABILITIES.map(({ key, label }) => [key, label])
+);
 
 const defaultForm: OrgLevelForm = {
   name: "",
   rank: 1,
   canUseApp: false,
-  capabilities: "",
+  capabilities: [],
   active: true,
 };
 
@@ -47,27 +61,28 @@ export default function OrgLevelsPage() {
       name: item.name,
       rank: item.rank,
       canUseApp: item.canUseApp,
-      capabilities: item.capabilities.join(", "),
+      capabilities: item.capabilities,
       active: item.active,
     }),
     mapFormToFirestore: (f) => ({
       name: f.name.trim(),
       rank: Number(f.rank),
       canUseApp: f.canUseApp,
-      capabilities: f.capabilities
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean),
+      capabilities: f.capabilities,
       active: f.active,
     }),
     validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
     onSuccess: (action) => showToast(action === "delete" ? "Nivel eliminado." : "Guardado correctamente."),
   });
 
-  const parsedCapabilities = useMemo(
-    () => form.capabilities.split(",").map((c) => c.trim()).filter(Boolean),
-    [form.capabilities],
-  );
+  function toggleCapability(key: string) {
+    setForm((c) => ({
+      ...c,
+      capabilities: c.capabilities.includes(key)
+        ? c.capabilities.filter((k) => k !== key)
+        : [...c.capabilities, key],
+    }));
+  }
 
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
@@ -111,8 +126,21 @@ export default function OrgLevelsPage() {
                       <td className="px-4 py-3">{item.rank}</td>
                       <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                       <td className="px-4 py-3">{item.canUseApp ? "Sí" : "No"}</td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {item.capabilities.length > 0 ? item.capabilities.join(", ") : "Sin capacidades"}
+                      <td className="px-4 py-3">
+                        {item.capabilities.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {item.capabilities.map((cap) => (
+                              <span
+                                key={cap}
+                                className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                              >
+                                {CAPABILITY_LABELS[cap] ?? cap}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">Sin capacidades</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">{item.active ? "Activo" : "Inactivo"}</td>
                       <td className="px-4 py-3">
@@ -140,14 +168,23 @@ export default function OrgLevelsPage() {
               {items.map((item) => (
                 <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="space-y-1">
                       <h4 className="font-semibold text-slate-900">{item.name}</h4>
                       <p className="text-sm text-slate-600">Rango: {item.rank}</p>
                       <p className="text-sm text-slate-600">App: {item.canUseApp ? "Sí" : "No"}</p>
                       <p className="text-sm text-slate-600">Estado: {item.active ? "Activo" : "Inactivo"}</p>
-                      <p className="text-sm text-slate-600">
-                        Capacidades: {item.capabilities.length > 0 ? item.capabilities.join(", ") : "Sin capacidades"}
-                      </p>
+                      {item.capabilities.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.capabilities.map((cap) => (
+                            <span
+                              key={cap}
+                              className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                            >
+                              {CAPABILITY_LABELS[cap] ?? cap}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -212,16 +249,25 @@ export default function OrgLevelsPage() {
               />
             </label>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Capacidades (separadas por coma)</span>
-              <textarea
-                value={form.capabilities}
-                onChange={(e) => setForm((c) => ({ ...c, capabilities: e.target.value }))}
-                rows={4}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-900 outline-none"
-                placeholder="can_create_direct_delivery, can_view_own_deliveries"
-              />
-            </label>
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-slate-700">Capacidades</legend>
+              <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+                {CAPABILITIES.map(({ key, label }) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.capabilities.includes(key)}
+                      onChange={() => toggleCapability(key)}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                    />
+                    <span className="text-sm text-slate-700">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
             <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
               <input
@@ -242,13 +288,6 @@ export default function OrgLevelsPage() {
               />
               Activo
             </label>
-
-            {parsedCapabilities.length > 0 && (
-              <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                <p className="font-medium text-slate-700">Vista previa de capacidades</p>
-                <p className="mt-2">{parsedCapabilities.join(" • ")}</p>
-              </div>
-            )}
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

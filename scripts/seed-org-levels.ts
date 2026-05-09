@@ -72,7 +72,6 @@ const orgLevelSeeds: OrgLevelSeed[] = [
     capabilities: [
       "can_create_direct_delivery",
       "can_register_promoted",
-      "can_create_indirect_delivery",
       "can_view_own_promoted",
       "can_edit_own_promoted",
       "can_delete_own_promoted",
