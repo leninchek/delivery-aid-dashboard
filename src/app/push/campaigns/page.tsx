@@ -392,7 +392,7 @@ export default function PushCampaignsPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Nueva campaña</h3>
@@ -553,7 +553,7 @@ export default function PushCampaignsPage() {
           </form>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <h3 className="text-lg font-semibold">Historial</h3>
           <p className="mt-1 text-sm text-slate-600">Últimas campañas registradas en PushCampaigns.</p>
 

@@ -96,7 +96,7 @@ export default function OrgLevelsPage() {
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
@@ -107,7 +107,7 @@ export default function OrgLevelsPage() {
             </span>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200">
             <div className="hidden md:block">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50 text-left text-slate-500">
@@ -203,7 +203,7 @@ export default function OrgLevelsPage() {
           </div>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">

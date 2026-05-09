@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { validateMexicanPhone, validateCurp, validateBirthDate } from "@/utils/validators";
 
 type OrgLevel = {
   id: string;
@@ -92,6 +93,7 @@ export default function OrgMembersPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
 
@@ -256,6 +258,7 @@ export default function OrgMembersPage() {
 
   function resetForm() {
     setError(null);
+    setFieldErrors({});
     setEditingId(null);
     setForm({
       ...defaultForm,
@@ -306,28 +309,29 @@ export default function OrgMembersPage() {
       return;
     }
 
-    if (!form.name.trim() || !form.phone.trim() || !form.curp.trim() || !form.birthDate) {
-      setError("Completa name, phone, curp y birthDate.");
-      return;
-    }
-
-    if (!form.levelId) {
-      setError("Selecciona un nivel de OrgLevels.");
-      return;
-    }
+    const errs: Record<string, string> = {};
+    if (!form.name.trim()) errs.name = "El nombre es obligatorio.";
+    const phoneErr = validateMexicanPhone(form.phone);
+    if (phoneErr) errs.phone = phoneErr;
+    const curpErr = validateCurp(form.curp);
+    if (curpErr) errs.curp = curpErr;
+    const birthErr = validateBirthDate(form.birthDate);
+    if (birthErr) errs.birthDate = birthErr;
+    if (!form.levelId) errs.levelId = "Selecciona un nivel organizacional.";
 
     if (editingId && form.parentId === editingId) {
-      setError("Un miembro no puede ser su propio parent.");
-      return;
+      errs.parentId = "Un miembro no puede ser su propio superior directo.";
+    } else if (editingId && form.parentId) {
+      const selectedParent = memberById.get(form.parentId);
+      if (selectedParent?.path.includes(editingId))
+        errs.parentId = "No puedes asignar como superior a un miembro subordinado.";
     }
 
-    if (editingId && form.parentId) {
-      const selectedParent = memberById.get(form.parentId);
-      if (selectedParent?.path.includes(editingId)) {
-        setError("No puedes asignar como parent a un descendiente.");
-        return;
-      }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
     }
+    setFieldErrors({});
 
     const memberPath = buildPath(form.parentId);
 
@@ -423,12 +427,12 @@ export default function OrgMembersPage() {
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Miembros Organizacionales</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Gestion del organigrama con jerarquia real por parentId y path.
+          Gestión del organigrama y estructura jerárquica de la organización.
         </p>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
@@ -468,14 +472,14 @@ export default function OrgMembersPage() {
             </label>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">Nivel</th>
-                  <th className="px-4 py-3 font-medium">Parent</th>
-                  <th className="px-4 py-3 font-medium">Asignacion</th>
+                  <th className="px-4 py-3 font-medium">Superior directo</th>
+                  <th className="px-4 py-3 font-medium">Asignación territorial</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
@@ -487,13 +491,13 @@ export default function OrgMembersPage() {
 
                   const assignmentSummary = [
                     item.assignment.cityId
-                      ? `City: ${cityById.get(item.assignment.cityId) || "-"}`
+                      ? `Ciudad: ${cityById.get(item.assignment.cityId) || "-"}`
                       : null,
                     item.assignment.communityId
-                      ? `Community: ${communityById.get(item.assignment.communityId) || "-"}`
+                      ? `Comunidad: ${communityById.get(item.assignment.communityId) || "-"}`
                       : null,
                     item.assignment.routeId
-                      ? `Route: ${routeById.get(item.assignment.routeId) || "-"}`
+                      ? `Ruta: ${routeById.get(item.assignment.routeId) || "-"}`
                       : null,
                   ]
                     .filter(Boolean)
@@ -503,7 +507,7 @@ export default function OrgMembersPage() {
                     <tr key={item.id}>
                       <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                       <td className="px-4 py-3 text-slate-700">
-                        {level ? `${level.name} (rank ${level.rank})` : "-"}
+                        {level ? `${level.name} (rango ${level.rank})` : "-"}
                       </td>
                       <td className="px-4 py-3 text-slate-700">{parent?.name || "-"}</td>
                       <td className="px-4 py-3 text-slate-700">
@@ -544,13 +548,13 @@ export default function OrgMembersPage() {
           </div>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">
                 {editingId ? "Editar miembro" : "Nuevo miembro"}
               </h3>
-              <p className="text-sm text-slate-600">Campos de persona obligatorios.</p>
+              <p className="text-sm text-slate-600">Datos personales y posición en el organigrama.</p>
             </div>
             {editingId ? (
               <button
@@ -564,87 +568,109 @@ export default function OrgMembersPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Name</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Nombre completo</label>
               <input
                 type="text"
                 value={form.name}
-                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, name: event.target.value }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.name; return n; });
+                }}
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.name ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               />
-            </label>
+              {fieldErrors.name && <p className="text-xs text-rose-600">{fieldErrors.name}</p>}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>Phone</span>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={form.phone}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, phone: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                  required
+                  maxLength={10}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((current) => ({ ...current, phone: digits }));
+                    setFieldErrors((e) => { const n = { ...e }; delete n.phone; return n; });
+                  }}
+                  placeholder="10 dígitos"
+                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.phone ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
                 />
-              </label>
+                {fieldErrors.phone && <p className="text-xs text-rose-600">{fieldErrors.phone}</p>}
+              </div>
 
-              <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>Birth Date</span>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Fecha de nacimiento</label>
                 <input
                   type="date"
                   value={form.birthDate}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, birthDate: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                  required
+                  min={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 100); return d.toISOString().slice(0, 10); })()}
+                  max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10); })()}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, birthDate: event.target.value }));
+                    setFieldErrors((e) => { const n = { ...e }; delete n.birthDate; return n; });
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.birthDate ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
                 />
-              </label>
+                {fieldErrors.birthDate && <p className="text-xs text-rose-600">{fieldErrors.birthDate}</p>}
+              </div>
             </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>CURP</span>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-slate-700">CURP</label>
+                <span className={`text-xs tabular-nums ${form.curp.length === 18 ? "text-emerald-600" : form.curp.length > 0 ? "text-slate-400" : "text-slate-300"}`}>
+                  {form.curp.length}/18
+                </span>
+              </div>
               <input
                 type="text"
                 value={form.curp}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, curp: event.target.value.toUpperCase() }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                required
+                maxLength={18}
+                onChange={(event) => {
+                  const clean = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
+                  setForm((current) => ({ ...current, curp: clean }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.curp; return n; });
+                }}
+                placeholder="18 caracteres"
+                className={`w-full rounded-lg border px-3 py-2 font-mono outline-none transition focus:border-slate-900 ${fieldErrors.curp ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               />
-            </label>
+              {fieldErrors.curp && <p className="text-xs text-rose-600">{fieldErrors.curp}</p>}
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Level</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Nivel organizacional</label>
               <select
                 value={form.levelId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, levelId: event.target.value }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, levelId: event.target.value }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.levelId; return n; });
+                }}
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.levelId ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               >
-                <option value="">Selecciona nivel</option>
+                <option value="">Selecciona un nivel</option>
                 {levels.map((level) => (
                   <option key={level.id} value={level.id}>
-                    {level.name} (rank {level.rank})
+                    {level.name} (rango {level.rank})
                   </option>
                 ))}
               </select>
-            </label>
+              {fieldErrors.levelId && <p className="text-xs text-rose-600">{fieldErrors.levelId}</p>}
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Parent (opcional)</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Superior directo (opcional)</label>
               <select
                 value={form.parentId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, parentId: toNullableId(event.target.value) }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, parentId: toNullableId(event.target.value) }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.parentId; return n; });
+                }}
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.parentId ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               >
-                <option value="">Sin parent</option>
+                <option value="">Sin superior directo</option>
                 {parentCandidates.map((member) => {
                   const level = levelById.get(member.levelId);
                   return (
@@ -654,13 +680,14 @@ export default function OrgMembersPage() {
                   );
                 })}
               </select>
-            </label>
+              {fieldErrors.parentId && <p className="text-xs text-rose-600">{fieldErrors.parentId}</p>}
+            </div>
 
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-sm font-medium text-slate-700">Asignacion territorial</p>
               <div className="mt-3 space-y-3">
                 <label className="block space-y-2 text-sm font-medium text-slate-700">
-                  <span>City (opcional)</span>
+                  <span>Ciudad (opcional)</span>
                   <select
                     value={form.assignment.cityId || ""}
                     onChange={(event) =>
@@ -684,7 +711,7 @@ export default function OrgMembersPage() {
                 </label>
 
                 <label className="block space-y-2 text-sm font-medium text-slate-700">
-                  <span>Community (opcional)</span>
+                  <span>Comunidad (opcional)</span>
                   <select
                     value={form.assignment.communityId || ""}
                     onChange={(event) =>
@@ -708,7 +735,7 @@ export default function OrgMembersPage() {
                 </label>
 
                 <label className="block space-y-2 text-sm font-medium text-slate-700">
-                  <span>Route (opcional)</span>
+                  <span>Ruta (opcional)</span>
                   <select
                     value={form.assignment.routeId || ""}
                     onChange={(event) =>
@@ -733,18 +760,26 @@ export default function OrgMembersPage() {
               </div>
             </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>App User ID (opcional)</span>
-              <input
-                type="text"
-                value={form.appUserId || ""}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, appUserId: toNullableId(event.target.value) }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="UID en SystemUsers"
-              />
-            </label>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-slate-700">Cuenta App</p>
+              {form.appUserId ? (
+                <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <span className="text-sm text-emerald-700">Vinculado con acceso a la App</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((current) => ({ ...current, appUserId: null }))}
+                    className="text-xs text-rose-600 hover:underline"
+                  >
+                    Desvincular
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  Sin cuenta App vinculada — gestiona el acceso desde{" "}
+                  <span className="font-medium text-slate-700">Operación → Acceso App</span>
+                </div>
+              )}
+            </div>
 
             <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
               <input

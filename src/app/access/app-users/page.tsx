@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { validateEmail, generateMemorablePassword } from "@/utils/validators";
 
 type OrgLevel = {
   id: string;
@@ -49,17 +50,6 @@ const defaultForm: CreateAccessForm = {
   email: "",
   password: "",
 };
-
-function generateTemporaryPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  let result = "";
-
-  for (let i = 0; i < 12; i += 1) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-
-  return result;
-}
 
 function mapSignUpError(message: string): string {
   switch (message) {
@@ -118,6 +108,7 @@ export default function AppUsersPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
@@ -261,7 +252,7 @@ export default function AppUsersPage() {
     setSuccess(null);
 
     if (!isAdmin) {
-      setError("Solo admin puede ejecutar Create App Access.");
+      setError("Solo administradores pueden crear cuentas con acceso a la App.");
       return;
     }
 
@@ -271,24 +262,28 @@ export default function AppUsersPage() {
       return;
     }
 
+    const errs: Record<string, string> = {};
+
+    if (!form.orgMemberId) errs.orgMemberId = "Selecciona un miembro.";
+
     const selectedMember = orgMemberById.get(form.orgMemberId);
+    if (form.orgMemberId && !selectedMember) errs.orgMemberId = "Selecciona un miembro válido.";
 
-    if (!selectedMember) {
-      setError("Selecciona un OrgMember valido.");
+    const selectedLevel = selectedMember ? levelById.get(selectedMember.levelId) : undefined;
+    if (selectedMember && !selectedLevel?.canUseApp)
+      errs.orgMemberId = "El nivel del miembro no tiene habilitado el acceso a la App.";
+
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errs.email = emailErr;
+
+    if (!form.password.trim()) errs.password = "La contraseña temporal es obligatoria.";
+    else if (form.password.trim().length < 6) errs.password = "La contraseña debe tener al menos 6 caracteres.";
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
-
-    const selectedLevel = levelById.get(selectedMember.levelId);
-
-    if (!selectedLevel?.canUseApp) {
-      setError("El nivel seleccionado no tiene canUseApp habilitado.");
-      return;
-    }
-
-    if (!form.email.trim() || !form.password.trim()) {
-      setError("Email y password temporal son obligatorios.");
-      return;
-    }
+    setFieldErrors({});
 
     setIsSaving(true);
 
@@ -320,7 +315,7 @@ export default function AppUsersPage() {
       await batch.commit();
 
       setSuccess(
-        `Cuenta App creada para ${selectedMember.name}. UID: ${appAuthUid}. Comparte el password temporal de forma segura.`
+        `Acceso a la App creado para ${selectedMember.name}. Comparte la contraseña temporal de forma segura.`
       );
       setForm({
         orgMemberId: "",
@@ -347,29 +342,29 @@ export default function AppUsersPage() {
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Acceso a la App</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Administracion de cuentas App vinculadas a OrgMembers.
+          Gestión de cuentas de acceso a la App para miembros organizacionales.
         </p>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Cuentas App</h3>
-              <p className="text-sm text-slate-600">Origen: SystemUsers con type = app.</p>
+              <p className="text-sm text-slate-600">Cuentas activas con acceso a la aplicación móvil.</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               {appUsers.length} cuentas
             </span>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">Email</th>
-                  <th className="px-4 py-3 font-medium">OrgMember</th>
+                  <th className="px-4 py-3 font-medium">Miembro</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Accion</th>
                 </tr>
@@ -407,10 +402,10 @@ export default function AppUsersPage() {
           </div>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold">Create App Access</h3>
+              <h3 className="text-lg font-semibold">Crear acceso a la App</h3>
               <p className="text-sm text-slate-600">Solo usuarios admin pueden ejecutar este flujo.</p>
             </div>
             <span
@@ -423,17 +418,17 @@ export default function AppUsersPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={handleCreateAccess}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>OrgMember elegible</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Miembro sin acceso</label>
               <select
                 value={form.orgMemberId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, orgMemberId: event.target.value }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, orgMemberId: event.target.value }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.orgMemberId; return n; });
+                }}
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.orgMemberId ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               >
-                <option value="">Selecciona un OrgMember</option>
+                <option value="">Selecciona un miembro</option>
                 {eligibleMembers.map((member) => {
                   const level = levelById.get(member.levelId);
                   return (
@@ -443,46 +438,53 @@ export default function AppUsersPage() {
                   );
                 })}
               </select>
-            </label>
+              {fieldErrors.orgMemberId && <p className="text-xs text-rose-600">{fieldErrors.orgMemberId}</p>}
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Email App</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Correo electrónico</label>
               <input
                 type="email"
                 value={form.email}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, email: event.target.value }))
-                }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="usuario.app@dominio.com"
-                required
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, email: event.target.value }));
+                  setFieldErrors((e) => { const n = { ...e }; delete n.email; return n; });
+                }}
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.email ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
+                placeholder="usuario@dominio.com"
               />
-            </label>
+              {fieldErrors.email && <p className="text-xs text-rose-600">{fieldErrors.email}</p>}
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Password temporal</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Contraseña temporal</label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={form.password}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, password: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                  placeholder="Minimo 6 caracteres"
-                  required
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, password: event.target.value }));
+                    setFieldErrors((e) => { const n = { ...e }; delete n.password; return n; });
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 font-mono outline-none transition focus:border-slate-900 ${fieldErrors.password ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
+                  placeholder="ej. $AGUA47"
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm((current) => ({ ...current, password: generateTemporaryPassword() }))
-                  }
+                  onClick={() => {
+                    setForm((current) => ({ ...current, password: generateMemorablePassword() }));
+                    setFieldErrors((e) => { const n = { ...e }; delete n.password; return n; });
+                  }}
                   className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
                   Generar
                 </button>
               </div>
-            </label>
+              <p className="text-xs text-slate-500">
+                Formato fácil de comunicar: símbolo + palabra + número (ej. <span className="font-mono">$AGUA47</span>).
+              </p>
+              {fieldErrors.password && <p className="text-xs text-rose-600">{fieldErrors.password}</p>}
+            </div>
 
             {error ? (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -501,7 +503,7 @@ export default function AppUsersPage() {
               disabled={isSaving || !isAdmin}
               className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSaving ? "Creando acceso..." : "Create App Access"}
+              {isSaving ? "Creando acceso..." : "Crear acceso"}
             </button>
           </form>
         </article>

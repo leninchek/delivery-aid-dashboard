@@ -52,7 +52,7 @@ export default function AidTypesPage() {
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
@@ -76,7 +76,7 @@ export default function AidTypesPage() {
             </label>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr>
@@ -124,7 +124,7 @@ export default function AidTypesPage() {
           </div>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">
