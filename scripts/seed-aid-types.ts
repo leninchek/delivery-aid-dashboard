@@ -19,106 +19,31 @@ for (const envFile of ENV_FILES) {
 const COLLECTION_AID_TYPES = "AidTypes";
 
 const aidTypeSeeds: AidTypeSeed[] = [
-{
-    name: "Apoyo económico",
-    unit: "MXN",
-    active: true,
-  },
-  {
-    name: "Despensa básica",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Canasta navideña",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Tarjeta de despensa",
-    unit: "tarjeta",
-    active: true,
-  },
-  {
-    name: "Kit escolar",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Médicamento",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Kit de higiene",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Combustible",
-    unit: "litro",
-    active: true,
-  },
-  {
-    name: "Fertilizante",
-    unit: "kg",
-    active: true,
-  },
-  {
-    name: "Frutas y Semillas",
-    unit: "kg",
-    active: true,
-  },
-  {
-    name: "Herramientas agrícolas",
-    unit: "pieza",
-    active: true,
-  },
-  {
-    name: "Libro educativo",
-    unit: "pieza",
-    active: true,
-  },
-  {
-    name: "Colchoneta",
-    unit: "pieza",
-    active: true,
-  },
-  {
-    name: "Cobija",
-    unit: "pieza",
-    active: true,
-  },
-  {
-    name: "Ropa de invierno",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Calzado",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Mochila escolar",
-    unit: "pieza",
-    active: true,
-  },
-  {
-    name: "Útiles escolares",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Material de construcción",
-    unit: "paquete",
-    active: true,
-  },
-  {
-    name: "Equipo de deportivo",
-    unit: "paquete",
-    active: true,
-  },
+  { name: "Despensa",              unit: "pieza", active: true },
+  { name: "Apoyo económico",       unit: "MXN", active: true },
+  { name: "Canasta navideña",      unit: "paquete", active: true },
+  { name: "Pavo navideño",         unit: "pieza", active: true },
+  { name: "Juguete",               unit: "pieza", active: true },
+  { name: "Útiles escolares",      unit: "paquete", active: true },
+  { name: "Mochila",               unit: "pieza", active: true },
+  { name: "Uniforme escolar",      unit: "paquete", active: true },
+  { name: "Rotoplas",              unit: "pieza", active: true },
+  { name: "Lámina de zinc",        unit: "pieza", active: true },
+  { name: "Cemento",               unit: "pieza", active: true },
+  { name: "Cal",                   unit: "pieza", active: true },
+  { name: "Block",                 unit: "pieza", active: true },
+  { name: "Varilla",               unit: "pieza", active: true },
+  { name: "Triciclo",              unit: "pieza", active: true },
+  { name: "Bicicleta",             unit: "pieza", active: true },
+  { name: "Leche, pañales y otros", unit: "pieza", active: true },
+  { name: "Fruta y semilla",       unit: "pieza", active: true },
+  { name: "Fertilizante",          unit: "pieza", active: true },
+  { name: "Herramienta",           unit: "pieza", active: true },
+  { name: "Silla de ruedas",       unit: "pieza", active: true },
+  { name: "Muleta",                unit: "pieza", active: true },
+  { name: "Colchón",               unit: "pieza", active: true },
+  { name: "Cobija",                unit: "pieza", active: true },
+  { name: "Balón",                 unit: "pieza", active: true },
 ];
 
 function hasArg(flag: string) {
