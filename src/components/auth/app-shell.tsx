@@ -25,9 +25,10 @@ const menuSections = [
   {
     title: "Operación",
     links: [
-      { href: "/organization/members", label: "Miembros Organizacionales" },
-      { href: "/access/app-users",     label: "Acceso App"               },
-      { href: "/push/campaigns",       label: "Campañas Push"            },
+      { href: "/organization/members",    label: "Miembros Organizacionales" },
+      { href: "/access/app-users",      label: "Acceso App"               },
+      { href: "/push/campaigns",        label: "Campañas Push"            },
+      { href: "/operacion/promovidos",  label: "Promovidos"               },
     ],
   },
   {

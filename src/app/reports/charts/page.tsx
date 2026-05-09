@@ -300,7 +300,7 @@ export default function ChartsPage() {
               </Pie>
               <Tooltip
                 contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
-                formatter={(value: number, name: string) => [`${value} entregas`, name]}
+                formatter={(value, name) => [`${value} entregas`, name]}
               />
               <Legend
                 wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
