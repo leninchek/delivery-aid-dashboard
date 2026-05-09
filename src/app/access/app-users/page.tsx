@@ -398,7 +398,7 @@ export default function AppUsersPage() {
                 {appUsers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
-                      No hay cuentas App creadas.
+                      Ningún miembro tiene acceso App aún. Usa el formulario para crear el primero.
                     </td>
                   </tr>
                 ) : null}

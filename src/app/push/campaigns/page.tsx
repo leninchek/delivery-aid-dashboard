@@ -20,6 +20,19 @@ import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/
 type CampaignTarget = "all_app_users" | "level_ids";
 type CampaignStatus = "draft" | "scheduled" | "sent" | "partial_failed" | "failed";
 
+const targetDisplayMap: Record<CampaignTarget, string> = {
+  all_app_users: "Todos los usuarios",
+  level_ids: "Por nivel organizacional",
+};
+
+const statusDisplayMap: Record<CampaignStatus, string> = {
+  draft: "Borrador",
+  scheduled: "Programada",
+  sent: "Enviada",
+  partial_failed: "Enviada con errores",
+  failed: "Fallida",
+};
+
 type PushCampaign = {
   id: string;
   title: string;
@@ -413,8 +426,8 @@ export default function PushCampaignsPage() {
                 }
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
-                <option value="all_app_users">all_app_users</option>
-                <option value="level_ids">level_ids</option>
+                <option value="all_app_users">{targetDisplayMap.all_app_users}</option>
+                <option value="level_ids">{targetDisplayMap.level_ids}</option>
               </select>
             </label>
 
@@ -510,12 +523,12 @@ export default function PushCampaignsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-slate-900">{item.title}</p>
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                    {item.status}
+                    {statusDisplayMap[item.status]}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-600">{item.body}</p>
                 <p className="mt-2 text-xs text-slate-500">
-                  Target: {item.target}
+                  Destino: {targetDisplayMap[item.target]}
                   {item.targetLevelIds.length > 0
                     ? ` (${item.targetLevelIds.length} niveles)`
                     : ""}

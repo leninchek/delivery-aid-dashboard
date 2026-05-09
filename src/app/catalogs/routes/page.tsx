@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import { showToast } from "@/hooks/useToast";
 import type { RouteItem } from "@/types/shared";
 
 type RouteForm = { name: string; description: string };
@@ -38,6 +39,7 @@ export default function RoutesPage() {
       );
       return duplicate ? "Ya existe una ruta con ese nombre." : null;
     },
+    onSuccess: (action) => showToast(action === "delete" ? "Ruta eliminada." : "Guardado correctamente."),
   });
 
   const filteredItems = useMemo(() => {
@@ -130,7 +132,7 @@ export default function RoutesPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
-                      No hay rutas para mostrar.
+                      {search ? "Sin resultados para esa búsqueda." : "Aún no hay rutas. Crea la primera ruta operativa."}
                     </td>
                   </tr>
                 )}

@@ -7,6 +7,7 @@ import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { toNullableId } from "@/lib/utils";
+import { showToast } from "@/hooks/useToast";
 import type { Authority, City, Community } from "@/types/shared";
 
 type CommunityForm = Omit<Community, "id">;
@@ -61,6 +62,7 @@ export default function CommunitiesPage() {
       ejidalCommissionerId: f.ejidalCommissionerId,
     }),
     validate: (f) => (!f.name.trim() ? "El nombre de la comunidad es obligatorio." : null),
+    onSuccess: (action) => showToast(action === "delete" ? "Comunidad eliminada." : "Guardado correctamente."),
   });
 
   useEffect(() => {
@@ -227,7 +229,7 @@ export default function CommunitiesPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
-                      No hay comunidades para mostrar.
+                      {search || cityFilter ? "Sin comunidades que coincidan con los filtros activos." : "Aún no hay comunidades. Crea la primera."}
                     </td>
                   </tr>
                 )}

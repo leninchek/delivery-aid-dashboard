@@ -25,6 +25,7 @@ interface UseCatalogCrudOptions<TItem extends WithId, TForm> {
   mapFormToFirestore: (form: TForm) => Record<string, unknown>;
   mapItemToForm: (item: TItem) => TForm;
   validate?: (form: TForm, editingId: string | null, items: TItem[]) => string | null;
+  onSuccess?: (action: "create" | "update" | "delete") => void;
 }
 
 export function useCatalogCrud<TItem extends WithId, TForm>({
@@ -35,6 +36,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
   mapFormToFirestore,
   mapItemToForm,
   validate,
+  onSuccess,
 }: UseCatalogCrudOptions<TItem, TForm>) {
   const [items, setItems] = useState<TItem[]>([]);
   const [form, setForm] = useState<TForm>(defaultForm);
@@ -86,6 +88,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
 
     setIsSaving(true);
     setError(null);
+    const action = editingId ? "update" : "create";
     try {
       const data = mapFormToFirestore(form);
       if (editingId) {
@@ -101,6 +104,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
         });
       }
       resetForm();
+      onSuccess?.(action);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar.");
     } finally {
@@ -117,6 +121,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
     try {
       await deleteDoc(doc(db, collectionName, id));
       if (editingId === id) resetForm();
+      onSuccess?.("delete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar.");
     } finally {
@@ -134,6 +139,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
         active: !item.active,
         updatedAt: serverTimestamp(),
       });
+      onSuccess?.("update");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cambiar estado.");
     }

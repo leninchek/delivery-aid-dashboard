@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import { showToast } from "@/hooks/useToast";
 import type { OrgLevel } from "@/types/shared";
 
 type OrgLevelForm = {
@@ -60,6 +61,7 @@ export default function OrgLevelsPage() {
       active: f.active,
     }),
     validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
+    onSuccess: (action) => showToast(action === "delete" ? "Nivel eliminado." : "Guardado correctamente."),
   });
 
   const parsedCapabilities = useMemo(
@@ -127,7 +129,7 @@ export default function OrgLevelsPage() {
                   {items.length === 0 && (
                     <tr>
                       <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
-                        No hay niveles cargados aún.
+                        Aún no hay niveles organizacionales. Crea el primero.
                       </td>
                     </tr>
                   )}

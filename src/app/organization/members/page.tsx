@@ -535,7 +535,7 @@ export default function OrgMembersPage() {
                 {filteredItems.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
-                      No hay miembros para mostrar.
+                      Sin miembros que coincidan con la búsqueda activa.
                     </td>
                   </tr>
                 ) : null}

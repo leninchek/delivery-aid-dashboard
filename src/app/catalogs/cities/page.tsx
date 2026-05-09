@@ -7,6 +7,7 @@ import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { toNullableId } from "@/lib/utils";
+import { showToast } from "@/hooks/useToast";
 import type { Authority, City } from "@/types/shared";
 
 type CityForm = Omit<City, "id">;
@@ -59,6 +60,7 @@ export default function CitiesPage() {
       ejidalCommissionerId: f.ejidalCommissionerId,
     }),
     validate: (f) => (!f.name.trim() || !f.state.trim() ? "Nombre y estado son obligatorios." : null),
+    onSuccess: (action) => showToast(action === "delete" ? "Ciudad eliminada." : "Guardado correctamente."),
   });
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export default function CitiesPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
-                      No hay ciudades para mostrar.
+                      {search ? "Sin resultados para esa búsqueda." : "Aún no hay ciudades. Crea la primera."}
                     </td>
                   </tr>
                 )}

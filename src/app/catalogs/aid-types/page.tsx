@@ -5,6 +5,7 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { aidUnitOptions, unitDisplayMap } from "@/lib/utils";
+import { showToast } from "@/hooks/useToast";
 import type { AidType, AidUnit } from "@/types/shared";
 
 type AidTypeForm = Pick<AidType, "name" | "unit" | "active">;
@@ -31,6 +32,7 @@ export default function AidTypesPage() {
     mapItemToForm: (item) => ({ name: item.name, unit: item.unit, active: item.active }),
     mapFormToFirestore: (f) => ({ name: f.name.trim(), unit: f.unit, active: f.active }),
     validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
+    onSuccess: (action) => showToast(action === "delete" ? "Eliminado correctamente." : "Guardado correctamente."),
   });
 
   const filteredItems = useMemo(() => {
@@ -113,7 +115,7 @@ export default function AidTypesPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
-                      No hay tipos de apoyo para mostrar.
+                      Aún no hay tipos de apoyo. Crea uno para comenzar.
                     </td>
                   </tr>
                 )}

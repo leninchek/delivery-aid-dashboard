@@ -5,6 +5,7 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { authorityTypeDisplayMap, authorityTypeOptions, formatDateInput } from "@/lib/utils";
+import { showToast } from "@/hooks/useToast";
 import type { Authority, AuthorityType } from "@/types/shared";
 
 type AuthorityForm = Omit<Authority, "id">;
@@ -56,6 +57,7 @@ export default function AuthoritiesPage() {
       }
       return null;
     },
+    onSuccess: (action) => showToast(action === "delete" ? "Autoridad eliminada." : "Guardado correctamente."),
   });
 
   const filteredItems = useMemo(() => {
@@ -152,7 +154,7 @@ export default function AuthoritiesPage() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
-                      No hay autoridades para mostrar.
+                      {search ? "Sin resultados para esa búsqueda." : "Aún no hay autoridades registradas."}
                     </td>
                   </tr>
                 )}
