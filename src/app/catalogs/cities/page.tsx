@@ -269,20 +269,6 @@ export default function CitiesPage() {
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Presidente (opcional)</span>
-              <select
-                value={form.mayorId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, mayorId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {mayors.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
               <span>Comisario Ejidal (opcional)</span>
               <select
                 value={form.ejidalCommissionerId || ""}
@@ -291,6 +277,20 @@ export default function CitiesPage() {
               >
                 <option value="">Sin asignar</option>
                 {ejidalCommissioners.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              <span>Presidente (opcional)</span>
+              <select
+                value={form.mayorId || ""}
+                onChange={(e) => setForm((c) => ({ ...c, mayorId: toNullableId(e.target.value) }))}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+              >
+                <option value="">Sin asignar</option>
+                {mayors.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>

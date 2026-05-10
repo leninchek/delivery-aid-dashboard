@@ -21,11 +21,11 @@ import { getFirestoreDb } from "@/lib/firebase";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DirectEntry   = { id: string; createdAt: Date | null; fromOrgId: string; aidTypeId: string };
-type IndirectEntry = { id: string; createdAt: Date | null; orgMemberId: string; aidTypeId: string };
-type AidTypeEntry  = { id: string; name: string };
-type MemberEntry   = { id: string; levelId: string };
-type LevelEntry    = { id: string; name: string };
+type DirectEntry    = { id: string; createdAt: Date | null; fromOrgId: string; aidTypeId: string };
+type IndirectEntry  = { id: string; createdAt: Date | null; orgMemberId: string; aidTypeId: string };
+type AidTypeEntry   = { id: string; name: string };
+type MemberEntry    = { id: string; communityId: string | null };
+type CommunityEntry = { id: string; name: string };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ export default function ChartsPage() {
   const [indirectEntries, setIndirectEntries] = useState<IndirectEntry[]>([]);
   const [aidTypes,        setAidTypes]        = useState<AidTypeEntry[]>([]);
   const [orgMembers,      setOrgMembers]      = useState<MemberEntry[]>([]);
-  const [orgLevels,       setOrgLevels]       = useState<LevelEntry[]>([]);
+  const [communities,     setCommunities]     = useState<CommunityEntry[]>([]);
   const [error,           setError]           = useState<string | null>(null);
 
   const { fourteenDaysAgo, days } = useMemo(() => {
@@ -115,15 +115,15 @@ export default function ChartsPage() {
       onSnapshot(
         collection(db, "OrgMembers"),
         (snap) => setOrgMembers(snap.docs.map((d) => ({
-          id:      d.id,
-          levelId: (d.get("levelId") as string) || "",
+          id:          d.id,
+          communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
         }))),
         (err) => setError(err.message),
       ),
 
       onSnapshot(
-        collection(db, "OrgLevels"),
-        (snap) => setOrgLevels(snap.docs.map((d) => ({
+        collection(db, "Communities"),
+        (snap) => setCommunities(snap.docs.map((d) => ({
           id:   d.id,
           name: (d.get("name") as string) || d.id,
         }))),
@@ -134,7 +134,59 @@ export default function ChartsPage() {
     return () => unsubs.forEach((u) => u());
   }, [isConfigured, fourteenDaysAgo]);
 
-  // ── Chart 1: Entregas por día ──────────────────────────────────────────────
+  // ── Chart 1: Entregas por comunidad × fecha ───────────────────────────────
+  const TOP_COMMUNITIES = 8;
+
+  const topCommunityNames = useMemo(() => {
+    const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
+    const communityName     = new Map(communities.map((c) => [c.id, c.name]));
+    const counts            = new Map<string, number>();
+
+    const tally = (memberId: string) => {
+      const communityId = communityByMember.get(memberId);
+      if (!communityId) return;
+      const name = communityName.get(communityId) ?? "Sin comunidad";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    };
+
+    directEntries.forEach((e)   => tally(e.fromOrgId));
+    indirectEntries.forEach((e) => tally(e.orgMemberId));
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, TOP_COMMUNITIES)
+      .map(([name]) => name);
+  }, [directEntries, indirectEntries, orgMembers, communities]);
+
+  const dailyCommunityData = useMemo(() => {
+    const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
+    const communityName     = new Map(communities.map((c) => [c.id, c.name]));
+    const topSet            = new Set(topCommunityNames);
+
+    return days.map((day) => {
+      const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+      const inDay = (d: Date | null) => d !== null && d >= day && d < next;
+
+      const row: Record<string, string | number> = { fecha: dayLabel(day) };
+      topCommunityNames.forEach((n) => { row[n] = 0; });
+
+      const tally = (memberId: string, date: Date | null) => {
+        if (!inDay(date)) return;
+        const communityId = communityByMember.get(memberId);
+        if (!communityId) return;
+        const name = communityName.get(communityId);
+        if (!name || !topSet.has(name)) return;
+        (row[name] as number)++;
+      };
+
+      directEntries.forEach((e)   => tally(e.fromOrgId,    e.createdAt));
+      indirectEntries.forEach((e) => tally(e.orgMemberId,  e.createdAt));
+
+      return row;
+    });
+  }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames]);
+
+  // ── Chart 2: Entregas por día ──────────────────────────────────────────────
   const dailyData = useMemo(() => {
     return days.map((day) => {
       const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
@@ -149,36 +201,18 @@ export default function ChartsPage() {
 
   const totalDeliveries14d = directEntries.length + indirectEntries.length;
 
-  // ── Chart 2: Entregas por tipo de apoyo ───────────────────────────────────
+  // ── Chart 3: Entregas por tipo de apoyo ───────────────────────────────────
   const aidTypeData = useMemo(() => {
     const counts = new Map<string, number>();
     [...directEntries, ...indirectEntries].forEach((e) => {
       if (e.aidTypeId) counts.set(e.aidTypeId, (counts.get(e.aidTypeId) ?? 0) + 1);
     });
     return aidTypes
-      .map((at) => ({ name: at.name, total: counts.get(at.id) ?? 0 }))
-      .filter((d) => d.total > 0)
-      .sort((a, b) => b.total - a.total)
+      .map((at) => ({ name: at.name, value: counts.get(at.id) ?? 0 }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value)
       .slice(0, 8);
   }, [directEntries, indirectEntries, aidTypes]);
-
-  // ── Chart 3: Entregas por nivel organizacional ────────────────────────────
-  const orgLevelData = useMemo(() => {
-    const levelByMember = new Map(orgMembers.map((m) => [m.id, m.levelId]));
-    const levelName     = new Map(orgLevels.map((l)  => [l.id, l.name]));
-    const counts        = new Map<string, number>();
-
-    directEntries.forEach((e) => {
-      const levelId = levelByMember.get(e.fromOrgId);
-      if (!levelId) return;
-      const name = levelName.get(levelId) ?? "Desconocido";
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    });
-
-    return Array.from(counts.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [directEntries, orgMembers, orgLevels]);
 
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
@@ -197,15 +231,15 @@ export default function ChartsPage() {
         </p>
       )}
 
-      {/* ── Chart 1: Entregas por día ──────────────────────────────────────── */}
+      {/* ── Chart 1: Entregas por comunidad × fecha ────────────────────────── */}
       <ChartCard
-        title="Entregas por día"
-        description="Directas e indirectas — últimos 14 días"
-        badge={`${totalDeliveries14d} total`}
-        empty={totalDeliveries14d === 0}
+        title="Entregas por comunidad"
+        description={`Top ${topCommunityNames.length} comunidades — últimos 14 días`}
+        badge={`${topCommunityNames.length} comunidades`}
+        empty={topCommunityNames.length === 0}
       >
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={dailyData} margin={{ top: 4, right: 16, left: -8, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={dailyCommunityData} margin={{ top: 4, right: 16, left: -8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis
               dataKey="fecha"
@@ -224,12 +258,20 @@ export default function ChartsPage() {
               cursor={{ fill: "#f8fafc" }}
             />
             <Legend
-              wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+              wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
               iconType="circle"
               iconSize={8}
             />
-            <Bar dataKey="Directas"   fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
-            <Bar dataKey="Indirectas" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+            {topCommunityNames.map((name, i) => (
+              <Bar
+                key={name}
+                dataKey={name}
+                stackId="c"
+                fill={CHART_COLORS[i % CHART_COLORS.length]}
+                maxBarSize={40}
+                radius={i === topCommunityNames.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -237,32 +279,25 @@ export default function ChartsPage() {
       {/* ── Charts 2 + 3 ──────────────────────────────────────────────────── */}
       <div className="grid gap-6 xl:grid-cols-2">
 
-        {/* Chart 2: Tipos de apoyo */}
+        {/* Chart 2: Directas vs Indirectas por día */}
         <ChartCard
-          title="Entregas por tipo de apoyo"
-          description="Top 8 tipos — directas e indirectas combinadas"
-          badge={`${aidTypeData.length} tipos`}
-          empty={aidTypeData.length === 0}
+          title="Directas vs Indirectas"
+          description="Volumen diario — últimos 14 días"
+          badge={`${totalDeliveries14d} total`}
+          empty={totalDeliveries14d === 0}
         >
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart
-              data={aidTypeData}
-              layout="vertical"
-              margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+            <BarChart data={dailyData} margin={{ top: 4, right: 16, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
-                type="number"
-                allowDecimals={false}
+                dataKey="fecha"
                 tick={{ fontSize: 11, fill: "#94a3b8" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                type="category"
-                dataKey="name"
-                width={96}
-                tick={{ fontSize: 11, fill: "#475569" }}
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -270,22 +305,28 @@ export default function ChartsPage() {
                 contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                 cursor={{ fill: "#f8fafc" }}
               />
-              <Bar dataKey="total" fill="#10b981" radius={[0, 3, 3, 0]} maxBarSize={20} />
+              <Legend
+                wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                iconType="circle"
+                iconSize={8}
+              />
+              <Bar dataKey="Directas"   fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="Indirectas" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Chart 3: Nivel organizacional */}
+        {/* Chart 3: Tipos de apoyo */}
         <ChartCard
-          title="Entregas por nivel organizacional"
-          description="Distribución de entregas directas por nivel del activista"
-          badge={`${orgLevelData.length} niveles`}
-          empty={orgLevelData.length === 0}
+          title="Entregas por tipo de apoyo"
+          description="Top 8 tipos — directas e indirectas combinadas"
+          badge={`${aidTypeData.length} tipos`}
+          empty={aidTypeData.length === 0}
         >
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
-                data={orgLevelData}
+                data={aidTypeData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -294,7 +335,7 @@ export default function ChartsPage() {
                 outerRadius={108}
                 paddingAngle={2}
               >
-                {orgLevelData.map((_, i) => (
+                {aidTypeData.map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>

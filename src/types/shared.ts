@@ -45,7 +45,6 @@ export type Community = {
   cityId: string | null;
   delegateId: string | null;
   subDelegateId: string | null;
-  mayorId: string | null;
   ejidalCommissionerId: string | null;
 };
 

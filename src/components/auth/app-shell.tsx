@@ -18,8 +18,9 @@ const menuSections = [
       { href: "/reports/charts",      label: "Gráficas"                },
       { href: "/reports/deliveries",  label: "Entregas"                },
       { href: "/reports/activists",   label: "Actividad por Activista" },
-      { href: "/reports/communities", label: "Cobertura por Comunidad" },
-      { href: "/reports/branch",      label: "Rama Jerárquica"         },
+      { href: "/reports/communities", label: "Cobertura por Comunidad"    },
+      { href: "/reports/authorities", label: "Autoridades por Comunidad" },
+      { href: "/reports/branch",      label: "Rama Jerárquica"           },
     ],
   },
   {

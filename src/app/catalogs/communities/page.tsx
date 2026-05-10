@@ -17,7 +17,6 @@ const defaultForm: CommunityForm = {
   cityId: null,
   delegateId: null,
   subDelegateId: null,
-  mayorId: null,
   ejidalCommissionerId: null,
 };
 
@@ -42,7 +41,6 @@ export default function CommunitiesPage() {
       cityId: item.get("cityId") || null,
       delegateId: item.get("delegateId") || null,
       subDelegateId: item.get("subDelegateId") || null,
-      mayorId: item.get("mayorId") || null,
       ejidalCommissionerId: item.get("ejidalCommissionerId") || null,
     }),
     mapItemToForm: (item) => ({
@@ -50,7 +48,6 @@ export default function CommunitiesPage() {
       cityId: item.cityId,
       delegateId: item.delegateId,
       subDelegateId: item.subDelegateId,
-      mayorId: item.mayorId,
       ejidalCommissionerId: item.ejidalCommissionerId,
     }),
     mapFormToFirestore: (f) => ({
@@ -58,7 +55,6 @@ export default function CommunitiesPage() {
       cityId: f.cityId,
       delegateId: f.delegateId,
       subDelegateId: f.subDelegateId,
-      mayorId: f.mayorId,
       ejidalCommissionerId: f.ejidalCommissionerId,
     }),
     validate: (f) => (!f.name.trim() ? "El nombre de la comunidad es obligatorio." : null),
@@ -112,9 +108,8 @@ export default function CommunitiesPage() {
     () => new Map(authorities.map((a) => [a.id, a.name])),
     [authorities]
   );
-  const delegates = useMemo(() => authorities.filter((a) => a.type === "delegate"), [authorities]);
-  const subDelegates = useMemo(() => authorities.filter((a) => a.type === "sub_delegate"), [authorities]);
-  const mayors = useMemo(() => authorities.filter((a) => a.type === "mayor"), [authorities]);
+  const delegates         = useMemo(() => authorities.filter((a) => a.type === "delegate"),            [authorities]);
+  const subDelegates      = useMemo(() => authorities.filter((a) => a.type === "sub_delegate"),        [authorities]);
   const ejidalCommissioners = useMemo(() => authorities.filter((a) => a.type === "ejidal_commissioner"), [authorities]);
 
   const filteredItems = useMemo(() => {
@@ -188,7 +183,6 @@ export default function CommunitiesPage() {
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">Ciudad</th>
                   <th className="px-4 py-3 font-medium">Delegado</th>
-                  <th className="px-4 py-3 font-medium">Presidente</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -201,9 +195,6 @@ export default function CommunitiesPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {item.delegateId ? (authorityNameById.get(item.delegateId) ?? "-") : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {item.mayorId ? (authorityNameById.get(item.mayorId) ?? "-") : "-"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
@@ -228,7 +219,7 @@ export default function CommunitiesPage() {
                 ))}
                 {filteredItems.length === 0 && (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
                       {search || cityFilter ? "Sin comunidades que coincidan con los filtros activos." : "Aún no hay comunidades. Crea la primera."}
                     </td>
                   </tr>
@@ -307,20 +298,6 @@ export default function CommunitiesPage() {
               >
                 <option value="">Sin asignar</option>
                 {subDelegates.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Presidente (opcional)</span>
-              <select
-                value={form.mayorId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, mayorId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {mayors.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
