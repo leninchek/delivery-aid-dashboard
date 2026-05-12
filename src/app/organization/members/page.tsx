@@ -66,19 +66,14 @@ function toNullableId(value: string): string | null {
 }
 
 function formatDateInput(value: unknown): string {
-  if (!value) {
-    return "";
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
+  if (!value) return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
   if (typeof value === "object" && value !== null && "toDate" in value) {
-    const maybeTimestamp = value as { toDate: () => Date };
-    return maybeTimestamp.toDate().toISOString().slice(0, 10);
+    return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
   }
-
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
   return "";
 }
 
@@ -92,8 +87,9 @@ export default function OrgMembersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [error,        setError]        = useState<string | null>(null);
+  const [isUnlinking,  setIsUnlinking]  = useState(false);
+  const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
 
@@ -297,6 +293,26 @@ export default function OrgMembersPage() {
     }
 
     return [...parent.path, parent.id];
+  }
+
+  async function handleUnlink() {
+    if (!editingId) return;
+    const firestoreDb = getFirestoreDb();
+    if (!firestoreDb) return;
+
+    setIsUnlinking(true);
+    setError(null);
+    try {
+      await updateDoc(doc(firestoreDb, "OrgMembers", editingId), {
+        appUserId: null,
+        updatedAt: serverTimestamp(),
+      });
+      setForm((c) => ({ ...c, appUserId: null }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible desvincular la cuenta.");
+    } finally {
+      setIsUnlinking(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -767,11 +783,28 @@ export default function OrgMembersPage() {
                   <span className="text-sm text-emerald-700">Vinculado con acceso a la App</span>
                   <button
                     type="button"
-                    onClick={() => setForm((current) => ({ ...current, appUserId: null }))}
-                    className="text-xs text-rose-600 hover:underline"
+                    onClick={() => void handleUnlink()}
+                    disabled={isUnlinking}
+                    className="text-xs text-rose-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Desvincular
+                    {isUnlinking ? "Desvinculando..." : "Desvincular"}
                   </button>
+                </div>
+              ) : editingId ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">
+                    Sin cuenta App vinculada. Para re-vincular, pega el UID desde{" "}
+                    <span className="font-medium text-slate-700">Acceso App</span>.
+                  </p>
+                  <input
+                    type="text"
+                    value={form.appUserId ?? ""}
+                    onChange={(e) =>
+                      setForm((c) => ({ ...c, appUserId: e.target.value.trim() || null }))
+                    }
+                    placeholder="UID de la cuenta App"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 font-mono text-xs outline-none transition focus:border-slate-900"
+                  />
                 </div>
               ) : (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
