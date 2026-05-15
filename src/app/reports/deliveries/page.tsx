@@ -19,7 +19,7 @@ import type { AidType, OrgLevel } from "@/types/shared";
 
 type Row = {
   id: string;
-  type: "Directa" | "Indirecta";
+  type: "Con beneficiario" | "Sin beneficiario";
   date: Date | null;
   activistName: string;
   levelId: string;
@@ -153,7 +153,7 @@ export default function DeliveriesReportPage() {
           const lid = m?.levelId ?? "";
           const aid = (d.get("aidTypeId") as string) || "";
           allRows.push({
-            id: d.id, type: "Directa",
+            id: d.id, type: "Con beneficiario",
             date: parseTimestamp(d.get("createdAt")),
             activistName: m?.name ?? "—",
             levelId: lid,  levelName:    levelMap.get(lid) ?? "—",
@@ -182,7 +182,7 @@ export default function DeliveriesReportPage() {
           const lid = m?.levelId ?? "";
           const aid = (d.get("aidTypeId") as string) || "";
           allRows.push({
-            id: d.id, type: "Indirecta",
+            id: d.id, type: "Sin beneficiario",
             date: parseTimestamp(d.get("createdAt")),
             activistName: m?.name ?? "—",
             levelId: lid,  levelName:    levelMap.get(lid) ?? "—",
@@ -237,7 +237,7 @@ export default function DeliveriesReportPage() {
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Reporte de Entregas</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Directas e indirectas filtradas por periodo y criterios.
+          Con y sin beneficiario, filtradas por periodo y criterios.
         </p>
       </header>
 
@@ -253,9 +253,9 @@ export default function DeliveriesReportPage() {
         <div className="flex flex-wrap gap-3">
           <select value={delivType} onChange={(e) => setDelivType(e.target.value as DelivType)}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="both">Directas e indirectas</option>
-            <option value="direct">Solo directas</option>
-            <option value="indirect">Solo indirectas</option>
+            <option value="both">Todos los tipos</option>
+            <option value="direct">Con beneficiario</option>
+            <option value="indirect">Sin beneficiario</option>
           </select>
           <select value={aidTypeId} onChange={(e) => setAidTypeId(e.target.value)}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
@@ -325,7 +325,7 @@ export default function DeliveriesReportPage() {
                       <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDateTime(r.date)}</td>
                       <td className="px-5 py-3">
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          r.type === "Directa" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"
+                          r.type === "Con beneficiario" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"
                         }`}>{r.type}</span>
                       </td>
                       <td className="px-5 py-3 font-medium text-slate-900">{r.activistName}</td>

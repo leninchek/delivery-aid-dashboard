@@ -208,7 +208,7 @@ export default function BranchReportPage() {
   }
 
   function doExport() {
-    const headers = ["Nombre", "Nivel", "Directas", "Indirectas"];
+    const headers = ["Nombre", "Nivel", "Con beneficiario", "Sin beneficiario"];
     if (includePromoted) headers.push("Promovidos");
     headers.push("Última Actividad");
     exportToCsv(
@@ -349,8 +349,8 @@ export default function BranchReportPage() {
                   <tr>
                     <SortTh label="Nombre"         field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Nivel"          field="levelRank"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Directas"       field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Indirectas"     field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortTh label="Con benef."     field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortTh label="Sin benef."     field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     {includePromoted && <SortTh label="Promovidos" field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />}
                     <SortTh label="Últ. actividad" field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                   </tr>

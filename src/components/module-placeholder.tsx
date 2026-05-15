@@ -18,7 +18,7 @@ export function ModulePlaceholder({
 
       <article className="rounded-xl border border-slate-200 bg-white p-6">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Proximos pasos
+          Próximos pasos
         </h3>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
           {nextSteps.map((step) => (

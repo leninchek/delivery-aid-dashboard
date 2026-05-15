@@ -453,7 +453,7 @@ export default function PushCampaignsPage() {
 
             {/* Target */}
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Target</span>
+              <span>Destinatarios</span>
               <select
                 value={form.target}
                 onChange={(event) =>
@@ -495,7 +495,7 @@ export default function PushCampaignsPage() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>Screen (opcional)</span>
+                <span>Pantalla (opcional)</span>
                 <input
                   type="text"
                   value={form.screen}
@@ -508,7 +508,7 @@ export default function PushCampaignsPage() {
               </label>
 
               <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>EntityId (opcional)</span>
+                <span>ID de entidad (opcional)</span>
                 <input
                   type="text"
                   value={form.entityId}

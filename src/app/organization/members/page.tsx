@@ -452,7 +452,7 @@ export default function OrgMembersPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
-              <p className="text-sm text-slate-600">Busqueda por nombre/CURP y filtro por nivel.</p>
+              <p className="text-sm text-slate-600">Búsqueda por nombre/CURP y filtro por nivel.</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               {filteredItems.length} registros
@@ -527,7 +527,7 @@ export default function OrgMembersPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-700">{parent?.name || "-"}</td>
                       <td className="px-4 py-3 text-slate-700">
-                        {assignmentSummary || "Sin asignacion"}
+                        {assignmentSummary || "Sin asignación"}
                       </td>
                       <td className="px-4 py-3">{item.active ? "Activo" : "Inactivo"}</td>
                       <td className="px-4 py-3">
@@ -700,7 +700,7 @@ export default function OrgMembersPage() {
             </div>
 
             <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-sm font-medium text-slate-700">Asignacion territorial</p>
+              <p className="text-sm font-medium text-slate-700">Asignación territorial</p>
               <div className="mt-3 space-y-3">
                 <label className="block space-y-2 text-sm font-medium text-slate-700">
                   <span>Ciudad (opcional)</span>

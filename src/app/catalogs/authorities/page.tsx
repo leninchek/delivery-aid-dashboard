@@ -90,7 +90,7 @@ export default function AuthoritiesPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
-              <p className="text-sm text-slate-600">Busqueda por nombre o CURP.</p>
+              <p className="text-sm text-slate-600">Búsqueda por nombre o CURP.</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               {filteredItems.length} registros
@@ -116,7 +116,7 @@ export default function AuthoritiesPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Tipo</th>
                   <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium">Telefono</th>
+                  <th className="px-4 py-3 font-medium">Teléfono</th>
                   <th className="px-4 py-3 font-medium">CURP</th>
                   <th className="px-4 py-3 font-medium">Nacimiento</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
@@ -209,7 +209,7 @@ export default function AuthoritiesPage() {
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Telefono</span>
+              <span>Teléfono</span>
               <input
                 type="text"
                 value={form.phone}

@@ -421,7 +421,7 @@ export default function AppUsersPage() {
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium">Nivel</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Onboarding</th>
+                  <th className="px-4 py-3 font-medium">Alta</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -465,7 +465,7 @@ export default function AppUsersPage() {
                             disabled={resettingUid === user.uid}
                             className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {resettingUid === user.uid ? "Reseteando..." : "Reset pwd"}
+                            {resettingUid === user.uid ? "Restableciendo..." : "Restablecer contraseña"}
                           </button>
                           <button
                             type="button"

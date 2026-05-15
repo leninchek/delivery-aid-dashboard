@@ -58,8 +58,8 @@ function formatDate(value: Date | null): string {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  DirectDeliveries: "Entrega directa",
-  IndirectDeliveries: "Entrega indirecta",
+  DirectDeliveries: "Beneficiario registrado",
+  IndirectDeliveries: "Beneficiario no registrado",
   OrgMembers: "Miembro organizacional",
   PushCampaigns: "Campaña push",
 };
@@ -131,7 +131,7 @@ export default function Home() {
             ...entries.map((e) => ({
               id: e.id,
               source: "DirectDeliveries",
-              label: `Entrega directa — ${e.fromName}`,
+              label: `Beneficiario registrado — ${e.fromName}`,
               at: e.createdAt,
             })),
           ]);
@@ -153,7 +153,7 @@ export default function Home() {
             ...entries.map((e) => ({
               id: e.id,
               source: "IndirectDeliveries",
-              label: "Entrega indirecta",
+              label: "Beneficiario no registrado",
               at: e.createdAt,
             })),
           ]);
@@ -300,7 +300,7 @@ export default function Home() {
         </h3>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            label="Entregas directas"
+            label="Beneficiarios registrados"
             primary={directThisWeek}
             primarySub="esta semana"
             secondary={`${directToday} hoy · ${directEntries.length} en 30 días`}
@@ -308,7 +308,7 @@ export default function Home() {
             trend={computeTrend(directThisWeek, directPrevWeek)}
           />
           <KpiCard
-            label="Entregas indirectas"
+            label="Beneficiarios no registrados"
             primary={indirectThisWeek}
             primarySub="esta semana"
             secondary={`${indirectEntries.length} en 30 días`}

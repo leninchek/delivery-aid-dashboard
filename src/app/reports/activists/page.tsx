@@ -161,7 +161,7 @@ export default function ActivistsReportPage() {
   function doExport() {
     exportToCsv(
       "actividad-activistas.csv",
-      ["Nombre", "Nivel", "Directas", "Indirectas", "Promovidos", "Última Actividad", "Estado"],
+      ["Nombre", "Nivel", "Con beneficiario", "Sin beneficiario", "Promovidos", "Última Actividad", "Estado"],
       sortedRows.map((r) => [
         r.name, r.levelName,
         String(r.directCount), String(r.indirectCount), String(r.promotedCount),
@@ -237,8 +237,8 @@ export default function ActivistsReportPage() {
                   <tr>
                     <SortTh label="Nombre"          field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Nivel"           field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Directas"        field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Indirectas"      field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortTh label="Con benef."      field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortTh label="Sin benef."      field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortTh label="Promovidos"      field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
                     <SortTh label="Últ. actividad"  field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Estado"          field="active"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />

@@ -65,7 +65,7 @@ export default function RoutesPage() {
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Rutas</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Catalogo de rutas operativas para asignacion territorial.
+          Catálogo de rutas operativas para asignación territorial.
         </p>
       </header>
 
@@ -74,7 +74,7 @@ export default function RoutesPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-semibold">Listado</h3>
-              <p className="text-sm text-slate-600">Busqueda por nombre o descripcion.</p>
+              <p className="text-sm text-slate-600">Búsqueda por nombre o descripción.</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               {filteredItems.length} registros
@@ -89,7 +89,7 @@ export default function RoutesPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Nombre o descripcion"
+                placeholder="Nombre o descripción"
               />
             </label>
           </div>
@@ -99,7 +99,7 @@ export default function RoutesPage() {
               <thead className="bg-slate-50 text-left text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium">Descripcion</th>
+                  <th className="px-4 py-3 font-medium">Descripción</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -174,7 +174,7 @@ export default function RoutesPage() {
             </label>
 
             <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Descripcion (opcional)</span>
+              <span>Descripción (opcional)</span>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
