@@ -18,13 +18,14 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
+import { parseTimestamp } from "@/lib/report-utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DirectEntry    = { id: string; createdAt: Date | null; fromOrgId: string; aidTypeId: string };
-type IndirectEntry  = { id: string; createdAt: Date | null; orgMemberId: string; aidTypeId: string };
+type IndirectEntry  = { id: string; createdAt: Date | null; registeredByUid: string; aidTypeId: string };
 type AidTypeEntry   = { id: string; name: string };
-type MemberEntry    = { id: string; communityId: string | null };
+type MemberEntry    = { id: string; communityId: string | null; appUserId: string | null };
 type CommunityEntry = { id: string; name: string };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -32,15 +33,6 @@ type CommunityEntry = { id: string; name: string };
 const CHART_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#f97316", "#84cc16"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function parseTimestamp(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (typeof value === "object" && value !== null && "toDate" in value) {
-    return (value as { toDate: () => Date }).toDate();
-  }
-  return null;
-}
 
 function buildDays(count: number): Date[] {
   return Array.from({ length: count }, (_, i) => {
@@ -95,10 +87,10 @@ export default function ChartsPage() {
       onSnapshot(
         query(collection(db, "IndirectDeliveries"), where("createdAt", ">=", cutoff)),
         (snap) => setIndirectEntries(snap.docs.map((d) => ({
-          id:          d.id,
-          createdAt:   parseTimestamp(d.get("createdAt")),
-          orgMemberId: (d.get("orgMemberId") as string) || (d.get("registeredBy") as string) || "",
-          aidTypeId:   (d.get("aidTypeId") as string) || "",
+          id:               d.id,
+          createdAt:        parseTimestamp(d.get("createdAt")),
+          registeredByUid:  (d.get("registeredBy") as string) || "",
+          aidTypeId:        (d.get("aidTypeId") as string) || "",
         }))),
         (err) => setError(err.message),
       ),
@@ -117,6 +109,7 @@ export default function ChartsPage() {
         (snap) => setOrgMembers(snap.docs.map((d) => ({
           id:          d.id,
           communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
+          appUserId:   (d.get("appUserId") as string) || null,
         }))),
         (err) => setError(err.message),
       ),
@@ -137,6 +130,11 @@ export default function ChartsPage() {
   // ── Chart 1: Entregas por comunidad × fecha ───────────────────────────────
   const TOP_COMMUNITIES = 8;
 
+  const uidToMemberId = useMemo(
+    () => new Map(orgMembers.filter((m) => m.appUserId).map((m) => [m.appUserId!, m.id])),
+    [orgMembers],
+  );
+
   const topCommunityNames = useMemo(() => {
     const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
     const communityName     = new Map(communities.map((c) => [c.id, c.name]));
@@ -149,14 +147,17 @@ export default function ChartsPage() {
       counts.set(name, (counts.get(name) ?? 0) + 1);
     };
 
-    directEntries.forEach((e)   => tally(e.fromOrgId));
-    indirectEntries.forEach((e) => tally(e.orgMemberId));
+    directEntries.forEach((e) => tally(e.fromOrgId));
+    indirectEntries.forEach((e) => {
+      const memberId = uidToMemberId.get(e.registeredByUid);
+      if (memberId) tally(memberId);
+    });
 
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, TOP_COMMUNITIES)
       .map(([name]) => name);
-  }, [directEntries, indirectEntries, orgMembers, communities]);
+  }, [directEntries, indirectEntries, orgMembers, communities, uidToMemberId]);
 
   const dailyCommunityData = useMemo(() => {
     const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
@@ -179,12 +180,15 @@ export default function ChartsPage() {
         (row[name] as number)++;
       };
 
-      directEntries.forEach((e)   => tally(e.fromOrgId,    e.createdAt));
-      indirectEntries.forEach((e) => tally(e.orgMemberId,  e.createdAt));
+      directEntries.forEach((e) => tally(e.fromOrgId, e.createdAt));
+      indirectEntries.forEach((e) => {
+        const memberId = uidToMemberId.get(e.registeredByUid);
+        if (memberId) tally(memberId, e.createdAt);
+      });
 
       return row;
     });
-  }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames]);
+  }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames, uidToMemberId]);
 
   // ── Chart 2: Entregas por día ──────────────────────────────────────────────
   const dailyData = useMemo(() => {

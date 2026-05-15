@@ -25,7 +25,20 @@ type Row = {
   aidTypeId: string;
   aidTypeName: string;
   communityName: string;
+  quantity: number | null;
+  unit: string;
+  recipientName: string;
+  comment: string;
+  status: string;
+  locationMissing: boolean;
+  locationMissingReason: string;
 };
+
+function formatQuantity(quantity: number | null, unit: string): string {
+  if (quantity === null) return "—";
+  const val = quantity % 1 === 0 ? String(Math.trunc(quantity)) : String(quantity);
+  return unit ? `${val} ${unit}` : val;
+}
 
 type SortKey = keyof Row;
 type DelivType = "both" | "direct" | "indirect";
@@ -73,9 +86,10 @@ export default function DeliveriesReportPage() {
   const [preset,      setPreset]      = useState<DatePreset>("30d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd,   setCustomEnd]   = useState("");
-  const [delivType,   setDelivType]   = useState<DelivType>("both");
-  const [aidTypeId,   setAidTypeId]   = useState("");
-  const [levelId,     setLevelId]     = useState("");
+  const [delivType,    setDelivType]    = useState<DelivType>("both");
+  const [aidTypeId,    setAidTypeId]    = useState("");
+  const [levelId,      setLevelId]      = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "synced" | "pending_sync">("");
 
   const [rows,      setRows]      = useState<Row[]>([]);
   const [sortKey,   setSortKey]   = useState<SortKey>("date");
@@ -138,6 +152,12 @@ export default function DeliveriesReportPage() {
         }];
       }));
 
+      const uidToMemberDocId = new Map<string, string>();
+      membersSnap.docs.forEach((d) => {
+        const uid = (d.get("appUserId") as string) || "";
+        if (uid) uidToMemberDocId.set(uid, d.id);
+      });
+
       const levelMap = new Map(orgLevels.map((l) => [l.id, l.name]));
       const aidMap   = new Map(aidTypes.map((a)  => [a.id, a.name]));
       const cityMap  = new Map(citiesSnap.docs.map((d) => [d.id, (d.get("name") as string) || d.id]));
@@ -175,6 +195,13 @@ export default function DeliveriesReportPage() {
             levelId: lid,  levelName:    levelMap.get(lid) ?? "—",
             aidTypeId: aid, aidTypeName: aidMap.get(aid)   ?? "—",
             communityName: communityLabel(mid),
+            quantity: d.get("quantity") != null ? (d.get("quantity") as number) : null,
+            unit: (d.get("unit") as string) || "",
+            recipientName: (d.get("toName") as string) || "",
+            comment: (d.get("comment") as string) || "",
+            status: (d.get("status") as string) || "",
+            locationMissing: Boolean(d.get("locationMissing")),
+            locationMissingReason: (d.get("locationMissingReason") as string) || "",
           });
         });
       }
@@ -186,7 +213,8 @@ export default function DeliveriesReportPage() {
           where("createdAt", "<=", e),
         ));
         snap.docs.forEach((d) => {
-          const mid = (d.get("orgMemberId") as string) || (d.get("registeredBy") as string) || "";
+          const uid = (d.get("registeredBy") as string) || "";
+          const mid = uidToMemberDocId.get(uid) ?? "";
           const m   = memberMap.get(mid);
           const lid = m?.levelId ?? "";
           const aid = (d.get("aidTypeId") as string) || "";
@@ -197,13 +225,21 @@ export default function DeliveriesReportPage() {
             levelId: lid,  levelName:    levelMap.get(lid) ?? "—",
             aidTypeId: aid, aidTypeName: aidMap.get(aid)   ?? "—",
             communityName: communityLabel(mid),
+            quantity: d.get("quantity") != null ? (d.get("quantity") as number) : null,
+            unit: (d.get("unit") as string) || "",
+            recipientName: (d.get("beneficiaryName") as string) || "",
+            comment: (d.get("comment") as string) || "",
+            status: (d.get("status") as string) || "",
+            locationMissing: Boolean(d.get("locationMissing")),
+            locationMissingReason: (d.get("locationMissingReason") as string) || "",
           });
         });
       }
 
       let filtered = allRows;
-      if (aidTypeId) filtered = filtered.filter((r) => r.aidTypeId === aidTypeId);
-      if (levelId)   filtered = filtered.filter((r) => r.levelId   === levelId);
+      if (aidTypeId)    filtered = filtered.filter((r) => r.aidTypeId === aidTypeId);
+      if (levelId)      filtered = filtered.filter((r) => r.levelId   === levelId);
+      if (statusFilter) filtered = filtered.filter((r) => r.status    === statusFilter);
       filtered.sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
 
       setRows(filtered);
@@ -218,8 +254,16 @@ export default function DeliveriesReportPage() {
   function doExport() {
     exportToCsv(
       "entregas.csv",
-      ["Fecha", "Tipo", "Activista", "Nivel", "Tipo de Apoyo", "Comunidad"],
-      sortedRows.map((r) => [fmtDateTime(r.date), r.type, r.activistName, r.levelName, r.aidTypeName, r.communityName]),
+      ["Fecha", "Tipo", "Activista", "Nivel", "Tipo de Apoyo", "Comunidad", "Cantidad", "Destinatario", "Estado", "Comentario", "Ubicación faltante", "Razón"],
+      sortedRows.map((r) => [
+        fmtDateTime(r.date), r.type, r.activistName, r.levelName, r.aidTypeName, r.communityName,
+        formatQuantity(r.quantity, r.unit),
+        r.recipientName,
+        r.status === "synced" ? "Sincronizado" : r.status === "pending_sync" ? "Pendiente" : r.status,
+        r.comment,
+        r.locationMissing ? "Sí" : "No",
+        r.locationMissingReason,
+      ]),
     );
   }
 
@@ -260,6 +304,12 @@ export default function DeliveriesReportPage() {
             <option value="">Todos los niveles</option>
             {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "" | "synced" | "pending_sync")}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+            <option value="">Todos los estados</option>
+            <option value="synced">Sincronizado</option>
+            <option value="pending_sync">Pendiente de sincronizar</option>
+          </select>
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={() => void runReport()} disabled={isLoading}
@@ -283,7 +333,7 @@ export default function DeliveriesReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton cols={6} />
+            <TableSkeleton cols={11} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin resultados. Intenta ampliar el rango de fechas o ajustar los filtros.
@@ -299,6 +349,11 @@ export default function DeliveriesReportPage() {
                     <SortTh label="Nivel"        field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortTh label="Comunidad"    field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortTh label="Estado"       field="status"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Comentario</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ubicación</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -314,6 +369,27 @@ export default function DeliveriesReportPage() {
                       <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
                       <td className="px-5 py-3 text-slate-600">{r.aidTypeName}</td>
                       <td className="px-5 py-3 text-slate-600">{r.communityName}</td>
+                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{formatQuantity(r.quantity, r.unit)}</td>
+                      <td className="px-5 py-3 text-slate-600 max-w-[160px] truncate" title={r.recipientName || undefined}>
+                        {r.recipientName || "—"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          r.status === "synced"       ? "bg-emerald-50 text-emerald-700" :
+                          r.status === "pending_sync" ? "bg-amber-50 text-amber-700" :
+                                                        "bg-slate-100 text-slate-500"
+                        }`}>
+                          {r.status === "synced" ? "Sincronizado" : r.status === "pending_sync" ? "Pendiente" : r.status || "—"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 max-w-[180px] truncate" title={r.comment || undefined}>
+                        {r.comment || "—"}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
+                        {r.locationMissing
+                          ? <span className="text-amber-600" title={r.locationMissingReason || undefined}>{r.locationMissingReason || "Sin ubicación"}</span>
+                          : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

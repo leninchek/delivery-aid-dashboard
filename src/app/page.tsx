@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { parseTimestamp } from "@/lib/report-utils";
 
 type DirectEntry = {
   id: string;
@@ -21,7 +22,7 @@ type DirectEntry = {
 type IndirectEntry = {
   id: string;
   createdAt: Date | null;
-  orgMemberId: string;
+  registeredByUid: string;
 };
 
 type PromotedEntry = {
@@ -46,15 +47,6 @@ type ActivityItem = {
   at: Date | null;
 };
 
-function parseTimestamp(value: unknown): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (typeof value === "object" && value !== null && "toDate" in value) {
-    return (value as { toDate: () => Date }).toDate();
-  }
-  return null;
-}
-
 function formatDate(value: Date | null): string {
   if (!value) return "Sin fecha";
   return new Intl.DateTimeFormat("es-MX", {
@@ -78,6 +70,7 @@ export default function Home() {
 
   const [orgMembersCount, setOrgMembersCount] = useState(0);
   const [activeOrgMembersCount, setActiveOrgMembersCount] = useState(0);
+  const [orgMembersData, setOrgMembersData] = useState<Array<{ id: string; appUserId: string | null }>>([]);
   const [appUsersCount, setAppUsersCount] = useState(0);
   const [activeAppUsersCount, setActiveAppUsersCount] = useState(0);
   const [directEntries, setDirectEntries] = useState<DirectEntry[]>([]);
@@ -107,6 +100,10 @@ export default function Home() {
       onSnapshot(collection(db, "OrgMembers"), (snap) => {
         setOrgMembersCount(snap.size);
         setActiveOrgMembersCount(snap.docs.filter((d) => d.get("active") ?? true).length);
+        setOrgMembersData(snap.docs.map((d) => ({
+          id: d.id,
+          appUserId: (d.get("appUserId") as string) || null,
+        })));
         setActivityItems((prev) => [
           ...prev.filter((i) => i.source !== "OrgMembers"),
           ...snap.docs.map((d) => ({
@@ -153,7 +150,7 @@ export default function Home() {
           const entries: IndirectEntry[] = snap.docs.map((d) => ({
             id: d.id,
             createdAt: parseTimestamp(d.get("createdAt")),
-            orgMemberId: (d.get("orgMemberId") as string) || (d.get("registeredBy") as string) || "",
+            registeredByUid: (d.get("registeredBy") as string) || "",
           }));
           setIndirectEntries(entries);
           setActivityItems((prev) => [
@@ -209,6 +206,11 @@ export default function Home() {
     return () => unsubs.forEach((u) => u());
   }, [isConfigured, thirtyDaysAgo]);
 
+  const uidToMemberId = useMemo(
+    () => new Map(orgMembersData.filter((m) => m.appUserId).map((m) => [m.appUserId!, m.id])),
+    [orgMembersData],
+  );
+
   // ── Computed operational metrics ──────────────────────────────────────────
   const directToday = useMemo(
     () => directEntries.filter((d) => d.createdAt && d.createdAt >= todayStart).length,
@@ -232,10 +234,13 @@ export default function Home() {
       .filter((d) => d.createdAt && d.createdAt >= weekStart && d.fromOrgId)
       .forEach((d) => ids.add(d.fromOrgId));
     indirectEntries
-      .filter((d) => d.createdAt && d.createdAt >= weekStart && d.orgMemberId)
-      .forEach((d) => ids.add(d.orgMemberId));
+      .filter((d) => d.createdAt && d.createdAt >= weekStart && d.registeredByUid)
+      .forEach((d) => {
+        const memberId = uidToMemberId.get(d.registeredByUid);
+        if (memberId) ids.add(memberId);
+      });
     return ids.size;
-  }, [directEntries, indirectEntries, weekStart]);
+  }, [directEntries, indirectEntries, weekStart, uidToMemberId]);
 
   const directPrevWeek = useMemo(
     () => directEntries.filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart).length,
@@ -255,10 +260,13 @@ export default function Home() {
       .filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart && d.fromOrgId)
       .forEach((d) => ids.add(d.fromOrgId));
     indirectEntries
-      .filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart && d.orgMemberId)
-      .forEach((d) => ids.add(d.orgMemberId));
+      .filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart && d.registeredByUid)
+      .forEach((d) => {
+        const memberId = uidToMemberId.get(d.registeredByUid);
+        if (memberId) ids.add(memberId);
+      });
     return ids.size;
-  }, [directEntries, indirectEntries, prevWeekStart, weekStart]);
+  }, [directEntries, indirectEntries, prevWeekStart, weekStart, uidToMemberId]);
 
   const pushReachRate = useMemo(() => {
     const sent = campaigns.filter(

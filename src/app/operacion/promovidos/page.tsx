@@ -43,7 +43,7 @@ function formatDate(value: unknown): string {
 
 function getCredentialStatus(p: PromotedPerson): "complete" | "pending" | "none" {
   if (p.credentialFrontUrl) return "complete";
-  if (p.pendingCredentialFront) return "pending";
+  if (p.pendingCredentialFront || p.pendingCredentialBack) return "pending";
   return "none";
 }
 
