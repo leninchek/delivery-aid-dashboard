@@ -20,11 +20,11 @@ import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/
 const MAX_TITLE = 50;
 const MAX_BODY = 150;
 
-type CampaignTarget = "all_app_users" | "level_ids";
+type CampaignTarget = "all" | "level_ids";
 type CampaignStatus = "draft" | "scheduled" | "sent" | "partial_failed" | "failed";
 
 const targetDisplayMap: Record<CampaignTarget, string> = {
-  all_app_users: "Todos los usuarios",
+  all: "Todos los usuarios",
   level_ids: "Por nivel organizacional",
 };
 
@@ -69,7 +69,7 @@ type CampaignForm = {
 const defaultForm: CampaignForm = {
   title: "",
   body: "",
-  target: "all_app_users",
+  target: "all",
   targetLevelIds: [],
   screen: "",
   entityId: "",
@@ -176,7 +176,7 @@ export default function PushCampaignsPage() {
               id: item.id,
               title: item.get("title") || "",
               body: item.get("body") || "",
-              target: (item.get("target") || "all_app_users") as CampaignTarget,
+              target: (item.get("target") || "all") as CampaignTarget,
               targetLevelIds: item.get("targetLevelIds") || [],
               status: (item.get("status") || "draft") as CampaignStatus,
               sentAt: asDate(item.get("sentAt")),
@@ -466,7 +466,7 @@ export default function PushCampaignsPage() {
                 }
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
               >
-                <option value="all_app_users">{targetDisplayMap.all_app_users}</option>
+                <option value="all">{targetDisplayMap.all}</option>
                 <option value="level_ids">{targetDisplayMap.level_ids}</option>
               </select>
             </label>
