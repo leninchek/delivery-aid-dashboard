@@ -21,7 +21,7 @@ const MAX_TITLE = 50;
 const MAX_BODY = 150;
 
 type CampaignTarget = "all" | "level_ids";
-type CampaignStatus = "draft" | "scheduled" | "sent" | "partial_failed" | "failed";
+type CampaignStatus = "scheduled" | "sent" | "partial_failed" | "failed";
 
 const targetDisplayMap: Record<CampaignTarget, string> = {
   all: "Todos los usuarios",
@@ -29,7 +29,6 @@ const targetDisplayMap: Record<CampaignTarget, string> = {
 };
 
 const statusDisplayMap: Record<CampaignStatus, string> = {
-  draft: "Borrador",
   scheduled: "Programada",
   sent: "Enviada",
   partial_failed: "Enviada con errores",
@@ -178,7 +177,7 @@ export default function PushCampaignsPage() {
               body: item.get("body") || "",
               target: (item.get("target") || "all") as CampaignTarget,
               targetLevelIds: item.get("targetLevelIds") || [],
-              status: (item.get("status") || "draft") as CampaignStatus,
+              status: (item.get("status") || "scheduled") as CampaignStatus,
               sentAt: asDate(item.get("sentAt")),
               createdAt: asDate(item.get("createdAt")),
               stats: {
@@ -238,7 +237,7 @@ export default function PushCampaignsPage() {
     });
   }
 
-  async function submitCampaign(mode: "draft" | "send") {
+  async function submitCampaign() {
     setError(null);
     setSuccess(null);
 
@@ -271,7 +270,7 @@ export default function PushCampaignsPage() {
         body: form.body.trim(),
         target: form.target,
         targetLevelIds: form.target === "level_ids" ? form.targetLevelIds : null,
-        status: mode === "draft" ? "draft" : "scheduled",
+        status: "scheduled",
         scheduledAt: null,
         sentAt: null,
         createdBy: sessionUser?.uid || null,
@@ -283,12 +282,6 @@ export default function PushCampaignsPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-
-      if (mode === "draft") {
-        setSuccess("Campaña guardada como draft.");
-        resetForm();
-        return;
-      }
 
       const endpoint = process.env.NEXT_PUBLIC_SEND_PUSH_CAMPAIGN_URL;
       if (!endpoint) {
@@ -411,7 +404,7 @@ export default function PushCampaignsPage() {
             className="mt-6 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              void submitCampaign("send");
+              void submitCampaign();
             }}
           >
             {/* Title */}
@@ -533,23 +526,13 @@ export default function PushCampaignsPage() {
               </p>
             )}
 
-            <div className="grid gap-2 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => void submitCampaign("draft")}
-                disabled={isSaving || !isAdmin}
-                className="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? "Procesando..." : "Guardar draft"}
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving || !isAdmin}
-                className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {isSaving ? "Procesando..." : "Enviar campaña"}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSaving || !isAdmin}
+              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {isSaving ? "Procesando..." : "Enviar campaña"}
+            </button>
           </form>
         </article>
 
