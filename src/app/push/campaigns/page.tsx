@@ -486,33 +486,23 @@ export default function PushCampaignsPage() {
               </div>
             )}
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>Pantalla (opcional)</span>
-                <input
-                  type="text"
-                  value={form.screen}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, screen: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                  placeholder="home, deliveries, reports"
-                />
-              </label>
-
-              <label className="block space-y-2 text-sm font-medium text-slate-700">
-                <span>ID de entidad (opcional)</span>
-                <input
-                  type="text"
-                  value={form.entityId}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, entityId: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                  placeholder="ID relacionado con screen"
-                />
-              </label>
-            </div>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              <span>Pantalla destino (opcional)</span>
+              <select
+                value={form.screen}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    screen: event.target.value,
+                    entityId: event.target.value ? current.entityId : "",
+                  }))
+                }
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+              >
+                <option value="">Sin pantalla destino</option>
+                <option value="notifications">Notificaciones</option>
+              </select>
+            </label>
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
