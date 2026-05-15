@@ -249,17 +249,17 @@ export default function PushCampaignsPage() {
 
     const firestoreDb = getFirestoreDb();
     if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
+      setError("Firestore no está configurado.");
       return;
     }
 
     if (!form.title.trim() || !form.body.trim()) {
-      setError("Title y body son obligatorios.");
+      setError("El título y el mensaje son obligatorios.");
       return;
     }
 
     if (form.target === "level_ids" && form.targetLevelIds.length === 0) {
-      setError("Selecciona al menos un nivel para target level_ids.");
+      setError("Selecciona al menos un nivel organizacional.");
       return;
     }
 

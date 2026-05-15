@@ -237,12 +237,12 @@ export default function AppUsersPage() {
       });
       const data = (await res.json()) as { error?: string; tempPassword?: string };
 
-      if (!res.ok) throw new Error(data.error ?? "Error al resetear contraseña.");
+      if (!res.ok) throw new Error(data.error ?? "Error al restablecer la contraseña.");
 
       setBanner({ action: "reset", phone, tempPassword: data.tempPassword! });
       showToast("Contraseña reseteada.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Error al resetear contraseña.");
+      showToast(err instanceof Error ? err.message : "Error al restablecer la contraseña.");
     } finally {
       setResettingUid(null);
     }

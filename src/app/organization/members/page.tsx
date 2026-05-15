@@ -321,7 +321,7 @@ export default function OrgMembersPage() {
 
     const firestoreDb = getFirestoreDb();
     if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
+      setError("Firestore no está configurado.");
       return;
     }
 
@@ -413,7 +413,7 @@ export default function OrgMembersPage() {
 
     const firestoreDb = getFirestoreDb();
     if (!firestoreDb) {
-      setError("Firestore no esta configurado.");
+      setError("Firestore no está configurado.");
       setIsDeletingId(null);
       return;
     }

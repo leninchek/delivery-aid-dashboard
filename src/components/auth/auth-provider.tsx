@@ -46,22 +46,22 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function mapAuthError(error: unknown): string {
   if (!(error instanceof FirebaseError)) {
-    return "No fue posible iniciar sesion.";
+    return "No fue posible iniciar sesión.";
   }
 
   switch (error.code) {
     case "auth/invalid-email":
-      return "El formato del email no es valido.";
+      return "El formato del correo no es válido.";
     case "auth/invalid-credential":
-      return "Email o password incorrectos.";
+      return "Correo o contraseña incorrectos.";
     case "auth/user-disabled":
-      return "La cuenta esta deshabilitada en Authentication.";
+      return "La cuenta está deshabilitada. Contacta al administrador.";
     case "auth/too-many-requests":
       return "Demasiados intentos. Espera un momento e intenta de nuevo.";
     case "auth/network-request-failed":
-      return "No hay conexion. Verifica tu red e intenta de nuevo.";
+      return "Sin conexión. Verifica tu red e intenta de nuevo.";
     default:
-      return "No fue posible iniciar sesion.";
+      return "No fue posible iniciar sesión.";
   }
 }
 
@@ -69,7 +69,7 @@ async function resolveSessionUser(user: User): Promise<SessionUser> {
   const firestoreDb = getFirestoreDb();
 
   if (!firestoreDb) {
-    throw new Error("Firestore no esta configurado.");
+    throw new Error("Firestore no está configurado.");
   }
 
   const snapshot = await getDoc(doc(firestoreDb, "SystemUsers", user.uid));
