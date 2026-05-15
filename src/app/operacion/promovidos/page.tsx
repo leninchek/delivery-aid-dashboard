@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { fmtDate, parseTimestamp } from "@/lib/report-utils";
 
 type PromotedPerson = {
   id: string;
@@ -29,17 +30,6 @@ type NamedEntity = { id: string; name: string };
 
 type CredentialFilter = "all" | "complete" | "pending" | "none";
 
-function formatDate(value: unknown): string {
-  if (!value) return "—";
-  if (typeof value === "object" && value !== null && "toDate" in value) {
-    return new Intl.DateTimeFormat("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format((value as { toDate: () => Date }).toDate());
-  }
-  return "—";
-}
 
 function getCredentialStatus(p: PromotedPerson): "complete" | "pending" | "none" {
   if (p.credentialFrontUrl) return "complete";
@@ -372,7 +362,7 @@ function DetailModal({ person, activistName, communityName, onClose, onZoom }: D
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <DataRow label="CURP" value={<span className="font-mono text-xs">{person.curp}</span>} />
             <DataRow label="Teléfono" value={person.phone} />
-            <DataRow label="Fecha de nacimiento" value={formatDate(person.birthDate)} />
+            <DataRow label="Fecha de nacimiento" value={fmtDate(parseTimestamp(person.birthDate))} />
             <DataRow label="Comunidad" value={communityName} />
             <DataRow label="Activista" value={activistName} />
           </div>

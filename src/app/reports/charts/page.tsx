@@ -23,9 +23,9 @@ import { parseTimestamp } from "@/lib/report-utils";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DirectEntry    = { id: string; createdAt: Date | null; fromOrgId: string; aidTypeId: string };
-type IndirectEntry  = { id: string; createdAt: Date | null; registeredByUid: string; aidTypeId: string };
+type IndirectEntry  = { id: string; createdAt: Date | null; orgMemberId: string; aidTypeId: string };
 type AidTypeEntry   = { id: string; name: string };
-type MemberEntry    = { id: string; communityId: string | null; appUserId: string | null };
+type MemberEntry    = { id: string; communityId: string | null };
 type CommunityEntry = { id: string; name: string };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -87,10 +87,10 @@ export default function ChartsPage() {
       onSnapshot(
         query(collection(db, "IndirectDeliveries"), where("createdAt", ">=", cutoff)),
         (snap) => setIndirectEntries(snap.docs.map((d) => ({
-          id:               d.id,
-          createdAt:        parseTimestamp(d.get("createdAt")),
-          registeredByUid:  (d.get("registeredBy") as string) || "",
-          aidTypeId:        (d.get("aidTypeId") as string) || "",
+          id:          d.id,
+          createdAt:   parseTimestamp(d.get("createdAt")),
+          orgMemberId: (d.get("orgMemberId") as string) || "",
+          aidTypeId:   (d.get("aidTypeId") as string) || "",
         }))),
         (err) => setError(err.message),
       ),
@@ -109,7 +109,6 @@ export default function ChartsPage() {
         (snap) => setOrgMembers(snap.docs.map((d) => ({
           id:          d.id,
           communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
-          appUserId:   (d.get("appUserId") as string) || null,
         }))),
         (err) => setError(err.message),
       ),
@@ -130,11 +129,6 @@ export default function ChartsPage() {
   // ── Chart 1: Entregas por comunidad × fecha ───────────────────────────────
   const TOP_COMMUNITIES = 8;
 
-  const uidToMemberId = useMemo(
-    () => new Map(orgMembers.filter((m) => m.appUserId).map((m) => [m.appUserId!, m.id])),
-    [orgMembers],
-  );
-
   const topCommunityNames = useMemo(() => {
     const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
     const communityName     = new Map(communities.map((c) => [c.id, c.name]));
@@ -148,16 +142,13 @@ export default function ChartsPage() {
     };
 
     directEntries.forEach((e) => tally(e.fromOrgId));
-    indirectEntries.forEach((e) => {
-      const memberId = uidToMemberId.get(e.registeredByUid);
-      if (memberId) tally(memberId);
-    });
+    indirectEntries.forEach((e) => tally(e.orgMemberId));
 
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, TOP_COMMUNITIES)
       .map(([name]) => name);
-  }, [directEntries, indirectEntries, orgMembers, communities, uidToMemberId]);
+  }, [directEntries, indirectEntries, orgMembers, communities]);
 
   const dailyCommunityData = useMemo(() => {
     const communityByMember = new Map(orgMembers.map((m) => [m.id, m.communityId]));
@@ -181,14 +172,11 @@ export default function ChartsPage() {
       };
 
       directEntries.forEach((e) => tally(e.fromOrgId, e.createdAt));
-      indirectEntries.forEach((e) => {
-        const memberId = uidToMemberId.get(e.registeredByUid);
-        if (memberId) tally(memberId, e.createdAt);
-      });
+      indirectEntries.forEach((e) => tally(e.orgMemberId, e.createdAt));
 
       return row;
     });
-  }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames, uidToMemberId]);
+  }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames]);
 
   // ── Chart 2: Entregas por día ──────────────────────────────────────────────
   const dailyData = useMemo(() => {

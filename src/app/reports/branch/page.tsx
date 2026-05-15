@@ -4,6 +4,8 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { SortTh } from "@/components/reports/sort-th";
+import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
@@ -46,36 +48,6 @@ const MODE_LABELS: { value: BranchMode; label: string }[] = [
   { value: "member", label: "Por miembro" },
 ];
 
-function SortTh({
-  label, field, sortKey, sortDir, onSort, className,
-}: {
-  label: string; field: SortKey; sortKey: SortKey; sortDir: "asc" | "desc";
-  onSort: (f: SortKey) => void; className?: string;
-}) {
-  return (
-    <th
-      className={`cursor-pointer select-none px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700 ${className ?? ""}`}
-      onClick={() => onSort(field)}
-    >
-      {label}
-      <span className="ml-1 opacity-50">{sortKey === field ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
-    </th>
-  );
-}
-
-function TableSkeleton({ cols }: { cols: number }) {
-  return (
-    <div className="divide-y divide-slate-100">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex gap-3 px-5 py-3.5" style={{ opacity: 1 - i * 0.1 }}>
-          {Array.from({ length: cols }).map((__, j) => (
-            <div key={j} className="h-4 flex-1 animate-pulse rounded bg-slate-100" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function BranchReportPage() {
   const isConfigured = hasFirebaseConfig();
@@ -206,7 +178,7 @@ export default function BranchReportPage() {
         bump(directCounts, id); touch(id, parseTimestamp(d.get("createdAt")));
       });
       indirectSnap.docs.forEach((d) => {
-        const id = (d.get("orgMemberId") as string) || (d.get("registeredBy") as string) || "";
+        const id = (d.get("orgMemberId") as string) || "";
         bump(indirectCounts, id); touch(id, parseTimestamp(d.get("createdAt")));
       });
 
@@ -215,10 +187,7 @@ export default function BranchReportPage() {
           query(collection(db, "Promoted"), where("createdAt", ">=", s), where("createdAt", "<=", e)),
         );
         promotedSnap.docs.forEach((d) => {
-          const id =
-            (d.get("activistId")   as string) ||
-            (d.get("orgMemberId")  as string) ||
-            (d.get("registeredBy") as string) || "";
+          const id = (d.get("activistId") as string) || "";
           bump(promotedCounts, id); touch(id, parseTimestamp(d.get("createdAt")));
         });
       }

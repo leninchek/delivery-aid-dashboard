@@ -4,6 +4,8 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { SortTh } from "@/components/reports/sort-th";
+import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
@@ -27,36 +29,6 @@ type Row = {
 
 type SortKey = keyof Row;
 
-function SortTh({
-  label, field, sortKey, sortDir, onSort, className,
-}: {
-  label: string; field: SortKey; sortKey: SortKey; sortDir: "asc" | "desc";
-  onSort: (f: SortKey) => void; className?: string;
-}) {
-  return (
-    <th
-      className={`cursor-pointer select-none px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700 ${className ?? ""}`}
-      onClick={() => onSort(field)}
-    >
-      {label}
-      <span className="ml-1 opacity-50">{sortKey === field ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
-    </th>
-  );
-}
-
-function TableSkeleton() {
-  return (
-    <div className="divide-y divide-slate-100">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex gap-3 px-5 py-3.5" style={{ opacity: 1 - i * 0.1 }}>
-          {Array.from({ length: 5 }).map((__, j) => (
-            <div key={j} className="h-4 flex-1 animate-pulse rounded bg-slate-100" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function CommunitiesReportPage() {
   const isConfigured = hasFirebaseConfig();
@@ -151,7 +123,7 @@ export default function CommunitiesReportPage() {
         credit((d.get("fromOrgId") as string) || (d.get("orgMemberId") as string) || "", parseTimestamp(d.get("createdAt")));
       });
       indirectSnap.docs.forEach((d) => {
-        credit((d.get("orgMemberId") as string) || (d.get("registeredBy") as string) || "", parseTimestamp(d.get("createdAt")));
+        credit((d.get("orgMemberId") as string) || "", parseTimestamp(d.get("createdAt")));
       });
 
       const built: Row[] = Array.from(stats.entries())
@@ -235,7 +207,7 @@ export default function CommunitiesReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton />
+            <TableSkeleton cols={5} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin comunidades con actividad en el periodo. Intenta ampliar el rango de fechas.

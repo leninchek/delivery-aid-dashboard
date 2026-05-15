@@ -4,6 +4,8 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { SortTh } from "@/components/reports/sort-th";
+import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
@@ -43,38 +45,6 @@ function formatQuantity(quantity: number | null, unit: string): string {
 type SortKey = keyof Row;
 type DelivType = "both" | "direct" | "indirect";
 
-function SortTh({
-  label, field, sortKey, sortDir, onSort, className,
-}: {
-  label: string; field: SortKey; sortKey: SortKey; sortDir: "asc" | "desc";
-  onSort: (f: SortKey) => void; className?: string;
-}) {
-  return (
-    <th
-      className={`cursor-pointer select-none px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700 ${className ?? ""}`}
-      onClick={() => onSort(field)}
-    >
-      {label}
-      <span className="ml-1 opacity-50">
-        {sortKey === field ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
-      </span>
-    </th>
-  );
-}
-
-function TableSkeleton({ cols }: { cols: number }) {
-  return (
-    <div className="divide-y divide-slate-100">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex gap-3 px-5 py-3.5" style={{ opacity: 1 - i * 0.1 }}>
-          {Array.from({ length: cols }).map((__, j) => (
-            <div key={j} className="h-4 flex-1 animate-pulse rounded bg-slate-100" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function DeliveriesReportPage() {
   const isConfigured = hasFirebaseConfig();
@@ -152,12 +122,6 @@ export default function DeliveriesReportPage() {
         }];
       }));
 
-      const uidToMemberDocId = new Map<string, string>();
-      membersSnap.docs.forEach((d) => {
-        const uid = (d.get("appUserId") as string) || "";
-        if (uid) uidToMemberDocId.set(uid, d.id);
-      });
-
       const levelMap = new Map(orgLevels.map((l) => [l.id, l.name]));
       const aidMap   = new Map(aidTypes.map((a)  => [a.id, a.name]));
       const cityMap  = new Map(citiesSnap.docs.map((d) => [d.id, (d.get("name") as string) || d.id]));
@@ -213,8 +177,7 @@ export default function DeliveriesReportPage() {
           where("createdAt", "<=", e),
         ));
         snap.docs.forEach((d) => {
-          const uid = (d.get("registeredBy") as string) || "";
-          const mid = uidToMemberDocId.get(uid) ?? "";
+          const mid = (d.get("orgMemberId") as string) || "";
           const m   = memberMap.get(mid);
           const lid = m?.levelId ?? "";
           const aid = (d.get("aidTypeId") as string) || "";
@@ -343,15 +306,15 @@ export default function DeliveriesReportPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-100">
                   <tr>
-                    <SortTh label="Fecha"        field="date"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Tipo"         field="type"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Activista"    field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Nivel"        field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Comunidad"    field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortTh label="Estado"       field="status"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortTh label="Fecha"        field="date"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Tipo"         field="type"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Activista"    field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Nivel"        field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Comunidad"    field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <SortTh label="Estado"       field="status"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Comentario</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ubicación</th>
                   </tr>
