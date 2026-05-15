@@ -207,9 +207,16 @@ export default function AppUsersPage() {
 
     setIsSaving(true);
     try {
-      const res  = await fetch("/api/users/create", {
+      const endpoint = process.env.NEXT_PUBLIC_CREATE_APP_USER_URL;
+      if (!endpoint) { showToast("Falta NEXT_PUBLIC_CREATE_APP_USER_URL."); return; }
+
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) { showToast("No autenticado."); return; }
+      const idToken = await currentUser.getIdToken();
+
+      const res  = await fetch(endpoint, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
         body:    JSON.stringify(payload),
       });
       const data = (await res.json()) as { error?: string; phone?: string; tempPassword?: string };
@@ -230,9 +237,16 @@ export default function AppUsersPage() {
   async function handleResetPassword(uid: string, phone: string) {
     setResettingUid(uid);
     try {
-      const res  = await fetch("/api/users/reset-password", {
+      const endpoint = process.env.NEXT_PUBLIC_RESET_APP_USER_PASSWORD_URL;
+      if (!endpoint) { showToast("Falta NEXT_PUBLIC_RESET_APP_USER_PASSWORD_URL."); return; }
+
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) { showToast("No autenticado."); return; }
+      const idToken = await currentUser.getIdToken();
+
+      const res  = await fetch(endpoint, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
         body:    JSON.stringify({ uid }),
       });
       const data = (await res.json()) as { error?: string; tempPassword?: string };
@@ -252,9 +266,16 @@ export default function AppUsersPage() {
   async function handleToggle(uid: string, active: boolean) {
     setTogglingUid(uid);
     try {
-      const res = await fetch("/api/users/toggle-status", {
+      const endpoint = process.env.NEXT_PUBLIC_TOGGLE_APP_USER_STATUS_URL;
+      if (!endpoint) { showToast("Falta NEXT_PUBLIC_TOGGLE_APP_USER_STATUS_URL."); return; }
+
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) { showToast("No autenticado."); return; }
+      const idToken = await currentUser.getIdToken();
+
+      const res = await fetch(endpoint, {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
         body:    JSON.stringify({ uid, active }),
       });
       if (!res.ok) {
