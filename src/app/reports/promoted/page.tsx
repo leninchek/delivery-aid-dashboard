@@ -20,6 +20,7 @@ import {
 
 type CredentialStatus = "complete" | "pending" | "none";
 type ActiveFilter = "all" | "active" | "inactive";
+type IneFilter = "all" | "complete" | "incomplete" | "pending" | "none";
 type ActivistOption = { id: string; name: string; levelId: string; levelName: string };
 type LevelOption = { id: string; name: string; rank: number };
 type CommunityOption = { id: string; name: string };
@@ -61,28 +62,6 @@ function getCredentialStatus(frontUrl: unknown, pendingFront: unknown, pendingBa
   return "none";
 }
 
-function CredentialBadge({ status }: { status: CredentialStatus }) {
-  if (status === "complete") {
-    return (
-      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-        Con credencial
-      </span>
-    );
-  }
-  if (status === "pending") {
-    return (
-      <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-        Pendiente
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-      Sin credencial
-    </span>
-  );
-}
-
 export default function PromotedReportPage() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
@@ -96,6 +75,7 @@ export default function PromotedReportPage() {
   const [communityId, setCommunityId] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [credentialFilter, setCredentialFilter] = useState<"" | CredentialStatus>("");
+  const [ineFilter, setIneFilter] = useState<IneFilter>("all");
 
   const [rows, setRows] = useState<Row[]>([]);
   const [activistOptions, setActivistOptions] = useState<ActivistOption[]>([]);
@@ -106,7 +86,13 @@ export default function PromotedReportPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [isStale, setIsStale] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
+
+  function markStale() {
+    if (hasRun) setIsStale(true);
+  }
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -169,9 +155,13 @@ export default function PromotedReportPage() {
       if (activeFilter === "active" && !r.active) return false;
       if (activeFilter === "inactive" && r.active) return false;
       if (credentialFilter && r.credentialStatus !== credentialFilter) return false;
+      if (ineFilter === "complete") return Boolean(r.credentialFrontUrl && r.credentialBackUrl);
+      if (ineFilter === "incomplete") return Boolean(r.credentialFrontUrl || r.credentialBackUrl) && !(r.credentialFrontUrl && r.credentialBackUrl);
+      if (ineFilter === "pending") return Boolean(r.pendingCredentialFront || r.pendingCredentialBack);
+      if (ineFilter === "none") return !r.credentialFrontUrl && !r.credentialBackUrl && !r.pendingCredentialFront && !r.pendingCredentialBack;
       return true;
     });
-  }, [rows, searchText, activistId, levelId, communityId, activeFilter, credentialFilter]);
+  }, [rows, searchText, activistId, levelId, communityId, activeFilter, credentialFilter, ineFilter]);
 
   const sortedRows = useMemo(
     () => sortRows(filteredRows, sortKey, sortDir),
@@ -229,6 +219,7 @@ export default function PromotedReportPage() {
         };
       }));
       setHasRun(true);
+      setIsStale(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -275,7 +266,9 @@ export default function PromotedReportPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
         <DateRangeFilter
           preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
+          onPreset={(value) => { setPreset(value); markStale(); }}
+          onStart={(value) => { setCustomStart(value); markStale(); }}
+          onEnd={(value) => { setCustomEnd(value); markStale(); }}
         />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <input
@@ -316,15 +309,28 @@ export default function PromotedReportPage() {
             <option value="pending">Pendiente</option>
             <option value="none">Sin credencial</option>
           </select>
+          <select value={ineFilter} onChange={(e) => setIneFilter(e.target.value as IneFilter)}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+            <option value="all">Todas las INE</option>
+            <option value="complete">INE completa</option>
+            <option value="incomplete">INE incompleta</option>
+            <option value="pending">INE pendiente</option>
+            <option value="none">Sin INE</option>
+          </select>
         </div>
+        {isStale && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            El periodo del reporte cambió. Vuelve a generar para actualizar los resultados.
+          </p>
+        )}
         <div className="flex gap-3">
           <button type="button" onClick={() => void runReport()} disabled={isLoading || isLoadingCatalogs}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
             {isLoading ? "Generando..." : isLoadingCatalogs ? "Cargando catálogos..." : "Generar reporte"}
           </button>
           {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button type="button" onClick={doExport} disabled={isStale}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               Exportar CSV
             </button>
           )}
@@ -339,7 +345,7 @@ export default function PromotedReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton cols={12} />
+            <TableSkeleton cols={9} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin promovidos que coincidan con el periodo o los filtros activos.
@@ -349,7 +355,6 @@ export default function PromotedReportPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-100">
                   <tr>
-                    <SortTh label="Registro" field="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Nombre" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Teléfono" field="phone" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="CURP" field="curp" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
@@ -358,15 +363,12 @@ export default function PromotedReportPage() {
                     <SortTh label="Nivel" field="levelName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Comunidad" field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Estado" field="activeLabel" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Credencial" field="credentialLabel" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">INE frente</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">INE reverso</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {sortedRows.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
                       <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
                       <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{r.phone || "—"}</td>
                       <td className="px-5 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{r.curp || "—"}</td>
@@ -382,21 +384,10 @@ export default function PromotedReportPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <CredentialBadge status={r.credentialStatus} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <ReportImageCell
-                          imageUrl={r.credentialFrontUrl}
-                          label={`INE frente de ${r.name}`}
-                          pending={r.pendingCredentialFront}
-                        />
-                      </td>
-                      <td className="px-5 py-3">
-                        <ReportImageCell
-                          imageUrl={r.credentialBackUrl}
-                          label={`INE reverso de ${r.name}`}
-                          pending={r.pendingCredentialBack}
-                        />
+                        <button type="button" onClick={() => setSelectedRow(r)}
+                          className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                          Ver
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -406,6 +397,55 @@ export default function PromotedReportPage() {
           )}
         </div>
       )}
+      {selectedRow && (
+        <PromotedDetailModal row={selectedRow} onClose={() => setSelectedRow(null)} />
+      )}
     </section>
+  );
+}
+
+function PromotedDetailModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Detalle de promovido</h3>
+            <p className="text-sm text-slate-500">Registrado {fmtDateTime(row.createdAt)}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-2xl font-bold leading-none text-slate-400 hover:text-slate-700">✕</button>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailItem label="Nombre" value={row.name} />
+          <DetailItem label="Teléfono" value={row.phone || "—"} />
+          <DetailItem label="CURP" value={row.curp || "—"} />
+          <DetailItem label="Fecha nacimiento" value={fmtDate(row.birthDate)} />
+          <DetailItem label="Activista" value={row.activistName} />
+          <DetailItem label="Nivel" value={row.levelName} />
+          <DetailItem label="Comunidad" value={row.communityName} />
+          <DetailItem label="Estado" value={row.activeLabel} />
+          <DetailItem label="Credencial" value={row.credentialLabel} />
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">INE frente</p>
+            <ReportImageCell imageUrl={row.credentialFrontUrl} label={`INE frente de ${row.name}`} pending={row.pendingCredentialFront} />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">INE reverso</p>
+            <ReportImageCell imageUrl={row.credentialBackUrl} label={`INE reverso de ${row.name}`} pending={row.pendingCredentialBack} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="mt-1 text-sm text-slate-700">{value}</p>
+    </div>
   );
 }

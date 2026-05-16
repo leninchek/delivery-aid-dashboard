@@ -101,25 +101,19 @@ async function resolveSessionUser(user: User): Promise<SessionUser> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
-
   const isConfigured = hasFirebaseConfig();
   const missingEnvVars = getMissingFirebaseEnvVars();
 
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+  const [isLoading, setIsLoading] = useState(() => isConfigured && Boolean(getFirebaseAuth()));
+  const [authError, setAuthError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!isConfigured) {
-      setIsLoading(false);
-      return;
-    }
+    if (!isConfigured) return;
 
     const auth = getFirebaseAuth();
 
-    if (!auth) {
-      setIsLoading(false);
-      return;
-    }
+    if (!auth) return;
 
     // Failsafe: evita que la UI quede atrapada en "Validando sesion..." si Auth no responde.
     const loadingTimeout = window.setTimeout(() => {

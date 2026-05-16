@@ -27,16 +27,15 @@ const menuSections = [
   {
     title: "Operación",
     links: [
-      { href: "/organization/members",    label: "Miembros Organizacionales" },
+      { href: "/catalogs/org-levels",  label: "Niveles Organizacionales" },
       { href: "/access/app-users",      label: "Acceso App"               },
       { href: "/push/campaigns",        label: "Campañas Push"            },
-      { href: "/operacion/promovidos",  label: "Promovidos"               },
     ],
   },
   {
     title: "Catálogos",
     links: [
-      { href: "/catalogs/org-levels",  label: "Niveles Organizacionales" },
+      { href: "/organization/members",    label: "Miembros Organizacionales" },
       { href: "/catalogs/aid-types",   label: "Tipos de Apoyo"           },
       { href: "/catalogs/authorities", label: "Autoridades"              },
       { href: "/catalogs/cities",      label: "Ciudades"                 },
@@ -68,20 +67,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   const isLoginRoute = pathname === "/login";
 
-  // Auto-expand the section that contains the active link
-  useEffect(() => {
-    for (const section of menuSections) {
-      if (section.links.some((l) => l.href === pathname)) {
-        setCollapsedSections((prev) => {
-          if (!prev.has(section.title)) return prev;
-          const next = new Set(prev);
-          next.delete(section.title);
-          return next;
-        });
-        break;
-      }
-    }
-  }, [pathname]);
+  const activeSectionTitle = menuSections.find((section) =>
+    section.links.some((l) => l.href === pathname),
+  )?.title;
 
   useEffect(() => {
     if (!isConfigured || isLoading) return;
@@ -152,7 +140,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
         <nav className="space-y-5">
           {menuSections.map((section) => {
-            const isCollapsed = collapsedSections.has(section.title);
+            const isCollapsed = collapsedSections.has(section.title) && section.title !== activeSectionTitle;
             const hasCollapse = section.links.length > 1;
             return (
               <div key={section.title}>

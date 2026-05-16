@@ -38,6 +38,10 @@ type Row = {
   evidenceUrls: string[];
 };
 
+type MemberInfo = { name: string; levelId: string; communityId: string | null };
+type CommunityInfo = { name: string; cityId: string };
+type EvidenceFilter = "all" | "with" | "without" | "pending";
+
 function getEvidenceUrls(doc: { get: (field: string) => unknown }): string[] {
   const urls = doc.get("evidenceUrls");
   if (Array.isArray(urls)) {
@@ -63,6 +67,10 @@ export default function DeliveriesReportPage() {
 
   const [aidTypes,  setAidTypes]  = useState<AidType[]>([]);
   const [orgLevels, setOrgLevels] = useState<OrgLevel[]>([]);
+  const [memberMap, setMemberMap] = useState<Map<string, MemberInfo>>(new Map());
+  const [communityMap, setCommunityMap] = useState<Map<string, CommunityInfo>>(new Map());
+  const [cityMap, setCityMap] = useState<Map<string, string>>(new Map());
+  const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
 
   const [preset,      setPreset]      = useState<DatePreset>("30d");
   const [customStart, setCustomStart] = useState("");
@@ -71,20 +79,34 @@ export default function DeliveriesReportPage() {
   const [aidTypeId,    setAidTypeId]    = useState("");
   const [levelId,      setLevelId]      = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "synced" | "pending_sync">("");
+  const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>("all");
 
   const [rows,      setRows]      = useState<Row[]>([]);
   const [sortKey,   setSortKey]   = useState<SortKey>("date");
   const [sortDir,   setSortDir]   = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun,    setHasRun]    = useState(false);
+  const [isStale,   setIsStale]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
+
+  function markStale() {
+    if (hasRun) setIsStale(true);
+  }
 
   function toggleSort(field: SortKey) {
     if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(field); setSortDir("asc"); }
   }
 
-  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
+  const visibleRows = useMemo(() => rows.filter((r) => {
+    if (evidenceFilter === "with") return r.evidenceUrls.length > 0;
+    if (evidenceFilter === "without") return r.evidenceUrls.length === 0 && r.status !== "pending_sync";
+    if (evidenceFilter === "pending") return r.evidenceUrls.length === 0 && r.status === "pending_sync";
+    return true;
+  }), [rows, evidenceFilter]);
+
+  const sortedRows = useMemo(() => sortRows(visibleRows, sortKey, sortDir), [visibleRows, sortKey, sortDir]);
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -93,7 +115,10 @@ export default function DeliveriesReportPage() {
     Promise.all([
       getDocs(collection(db, "AidTypes")),
       getDocs(collection(db, "OrgLevels")),
-    ]).then(([atSnap, olSnap]) => {
+      getDocs(collection(db, "OrgMembers")),
+      getDocs(collection(db, "Communities")),
+      getDocs(collection(db, "Cities")),
+    ]).then(([atSnap, olSnap, membersSnap, commSnap, citiesSnap]) => {
       setAidTypes(atSnap.docs.map((d) => ({
         id: d.id, name: (d.get("name") as string) || d.id,
         unit: d.get("unit") as AidType["unit"], active: true,
@@ -105,12 +130,26 @@ export default function DeliveriesReportPage() {
           canUseApp: false, capabilities: [], active: true,
         })).sort((a, b) => a.rank - b.rank),
       );
-    }).catch((e) => setError((e as Error).message));
+      setMemberMap(new Map(membersSnap.docs.map((d) => {
+        const asgn = d.get("assignment") as Record<string, string | null> | null;
+        return [d.id, {
+          name:        (d.get("name") as string) || "—",
+          levelId:     (d.get("levelId") as string) || "",
+          communityId: asgn?.communityId ?? null,
+        }];
+      })));
+      setCommunityMap(new Map(commSnap.docs.map((d) => [d.id, {
+        name:   (d.get("name")   as string) || d.id,
+        cityId: (d.get("cityId") as string) || "",
+      }])));
+      setCityMap(new Map(citiesSnap.docs.map((d) => [d.id, (d.get("name") as string) || d.id])));
+    }).catch((e) => setError((e as Error).message))
+      .finally(() => setIsLoadingCatalogs(false));
   }, [isConfigured]);
 
   async function runReport() {
     const db = getFirestoreDb();
-    if (!db) return;
+    if (!db || isLoadingCatalogs) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -118,33 +157,13 @@ export default function DeliveriesReportPage() {
       const s = Timestamp.fromDate(start);
       const e = Timestamp.fromDate(end);
 
-      const [membersSnap, commSnap, citiesSnap] = await Promise.all([
-        getDocs(collection(db, "OrgMembers")),
-        getDocs(collection(db, "Communities")),
-        getDocs(collection(db, "Cities")),
-      ]);
-
-      const memberMap = new Map(membersSnap.docs.map((d) => {
-        const asgn = d.get("assignment") as Record<string, string | null> | null;
-        return [d.id, {
-          name:        (d.get("name") as string) || "—",
-          levelId:     (d.get("levelId") as string) || "",
-          communityId: asgn?.communityId ?? null,
-        }];
-      }));
-
       const levelMap = new Map(orgLevels.map((l) => [l.id, l.name]));
       const aidMap   = new Map(aidTypes.map((a)  => [a.id, a.name]));
-      const cityMap  = new Map(citiesSnap.docs.map((d) => [d.id, (d.get("name") as string) || d.id]));
-      const commMap  = new Map(commSnap.docs.map((d) => [d.id, {
-        name:   (d.get("name")   as string) || d.id,
-        cityId: (d.get("cityId") as string) || "",
-      }]));
 
       function communityLabel(memberId: string): string {
         const m = memberMap.get(memberId);
         if (!m?.communityId) return "—";
-        const c = commMap.get(m.communityId);
+        const c = communityMap.get(m.communityId);
         if (!c) return "—";
         const city = cityMap.get(c.cityId);
         return city ? `${c.name}, ${city}` : c.name;
@@ -220,6 +239,7 @@ export default function DeliveriesReportPage() {
 
       setRows(filtered);
       setHasRun(true);
+      setIsStale(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -262,40 +282,54 @@ export default function DeliveriesReportPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
         <DateRangeFilter
           preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
+          onPreset={(value) => { setPreset(value); markStale(); }}
+          onStart={(value) => { setCustomStart(value); markStale(); }}
+          onEnd={(value) => { setCustomEnd(value); markStale(); }}
         />
         <div className="flex flex-wrap gap-3">
-          <select value={delivType} onChange={(e) => setDelivType(e.target.value as DelivType)}
+          <select value={delivType} onChange={(e) => { setDelivType(e.target.value as DelivType); markStale(); }}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
             <option value="both">Todos los tipos</option>
             <option value="direct">Con beneficiario</option>
             <option value="indirect">Sin beneficiario</option>
           </select>
-          <select value={aidTypeId} onChange={(e) => setAidTypeId(e.target.value)}
+          <select value={aidTypeId} onChange={(e) => { setAidTypeId(e.target.value); markStale(); }}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
             <option value="">Todos los tipos de apoyo</option>
             {aidTypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          <select value={levelId} onChange={(e) => setLevelId(e.target.value)}
+          <select value={levelId} onChange={(e) => { setLevelId(e.target.value); markStale(); }}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
             <option value="">Todos los niveles</option>
             {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "" | "synced" | "pending_sync")}
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "" | "synced" | "pending_sync"); markStale(); }}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
             <option value="">Todos los estados</option>
             <option value="synced">Sincronizado</option>
             <option value="pending_sync">Pendiente de sincronizar</option>
           </select>
+          <select value={evidenceFilter} onChange={(e) => setEvidenceFilter(e.target.value as EvidenceFilter)}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+            <option value="all">Todas las evidencias</option>
+            <option value="with">Con evidencia</option>
+            <option value="without">Sin evidencia</option>
+            <option value="pending">Evidencia pendiente</option>
+          </select>
         </div>
+        {isStale && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Los filtros del reporte cambiaron. Vuelve a generar para actualizar los resultados.
+          </p>
+        )}
         <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={isLoading}
+          <button type="button" onClick={() => void runReport()} disabled={isLoading || isLoadingCatalogs}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : "Generar reporte"}
+            {isLoading ? "Generando..." : isLoadingCatalogs ? "Cargando catálogos..." : "Generar reporte"}
           </button>
           {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button type="button" onClick={doExport} disabled={isStale}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               Exportar CSV
             </button>
           )}
@@ -310,7 +344,7 @@ export default function DeliveriesReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton cols={12} />
+            <TableSkeleton cols={7} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin resultados. Intenta ampliar el rango de fechas o ajustar los filtros.
@@ -320,60 +354,35 @@ export default function DeliveriesReportPage() {
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-100">
                   <tr>
-                    <SortTh label="Fecha"        field="date"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Tipo"         field="type"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Activista"    field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Nivel"        field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Comunidad"    field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Estado"       field="status"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Comentario</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ubicación</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Evidencia</th>
+                    <SortTh label="Comunidad"    field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {sortedRows.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDateTime(r.date)}</td>
                       <td className="px-5 py-3">
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           r.type === "Con beneficiario" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"
                         }`}>{r.type}</span>
                       </td>
                       <td className="px-5 py-3 font-medium text-slate-900">{r.activistName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
                       <td className="px-5 py-3 text-slate-600">{r.aidTypeName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.communityName}</td>
                       <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{formatQuantity(r.quantity, r.unit)}</td>
-                      <td className="px-5 py-3 text-slate-600 max-w-[160px] truncate" title={r.recipientName || undefined}>
+                      <td className="px-5 py-3 text-slate-600 max-w-[180px] truncate" title={r.recipientName || undefined}>
                         {r.recipientName || "—"}
                       </td>
+                      <td className="px-5 py-3 text-slate-600">{r.communityName}</td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          r.status === "synced"       ? "bg-emerald-50 text-emerald-700" :
-                          r.status === "pending_sync" ? "bg-amber-50 text-amber-700" :
-                                                        "bg-slate-100 text-slate-500"
-                        }`}>
-                          {r.status === "synced" ? "Sincronizado" : r.status === "pending_sync" ? "Pendiente" : r.status || "—"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-slate-600 max-w-[180px] truncate" title={r.comment || undefined}>
-                        {r.comment || "—"}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">
-                        {r.locationMissing
-                          ? <span className="text-amber-600" title={r.locationMissingReason || undefined}>{r.locationMissingReason || "Sin ubicación"}</span>
-                          : "—"}
-                      </td>
-                      <td className="px-5 py-3">
-                        <ReportImageCell
-                          imageUrl={r.evidenceUrls[0] ?? null}
-                          label={`Evidencia de entrega ${r.id}`}
-                          pending={r.status === "pending_sync" && r.evidenceUrls.length === 0}
-                        />
+                        <button type="button" onClick={() => setSelectedRow(r)}
+                          className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                          Ver
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -383,6 +392,56 @@ export default function DeliveriesReportPage() {
           )}
         </div>
       )}
+      {selectedRow && (
+        <DeliveryDetailModal row={selectedRow} onClose={() => setSelectedRow(null)} />
+      )}
     </section>
+  );
+}
+
+function DeliveryDetailModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Detalle de entrega</h3>
+            <p className="text-sm text-slate-500">{fmtDateTime(row.date)}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-2xl font-bold leading-none text-slate-400 hover:text-slate-700">✕</button>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailItem label="Tipo" value={row.type} />
+          <DetailItem label="Activista" value={row.activistName} />
+          <DetailItem label="Nivel" value={row.levelName} />
+          <DetailItem label="Comunidad" value={row.communityName} />
+          <DetailItem label="Tipo de apoyo" value={row.aidTypeName} />
+          <DetailItem label="Cantidad" value={formatQuantity(row.quantity, row.unit)} />
+          <DetailItem label="Destinatario" value={row.recipientName || "—"} />
+          <DetailItem label="Estado" value={row.status === "synced" ? "Sincronizado" : row.status === "pending_sync" ? "Pendiente" : row.status || "—"} />
+          <DetailItem label="Comentario" value={row.comment || "—"} />
+          <DetailItem label="Ubicación" value={row.locationMissing ? row.locationMissingReason || "Sin ubicación" : "Disponible"} />
+        </div>
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Evidencias</p>
+          <div className="flex flex-wrap gap-3">
+            {row.evidenceUrls.length > 0 ? row.evidenceUrls.map((url, index) => (
+              <ReportImageCell key={url} imageUrl={url} label={`Evidencia ${index + 1} de entrega ${row.id}`} />
+            )) : (
+              <ReportImageCell imageUrl={null} label={`Evidencia de entrega ${row.id}`} pending={row.status === "pending_sync"} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="mt-1 text-sm text-slate-700">{value}</p>
+    </div>
   );
 }

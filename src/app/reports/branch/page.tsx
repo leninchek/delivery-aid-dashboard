@@ -55,7 +55,7 @@ export default function BranchReportPage() {
 
   const [allMembers,    setAllMembers]    = useState<MemberBasic[]>([]);
   const [orgLevels,     setOrgLevels]     = useState<LevelOption[]>([]);
-  const [isLoadingBase, setIsLoadingBase] = useState(false);
+  const [isLoadingBase, setIsLoadingBase] = useState(() => isConfigured);
 
   const [mode,            setMode]            = useState<BranchMode>("all");
   const [selectedLevelId, setSelectedLevelId] = useState("");
@@ -86,7 +86,6 @@ export default function BranchReportPage() {
     if (!isConfigured) return;
     const db = getFirestoreDb();
     if (!db) return;
-    setIsLoadingBase(true);
     Promise.all([
       getDocs(collection(db, "OrgMembers")),
       getDocs(collection(db, "OrgLevels")),

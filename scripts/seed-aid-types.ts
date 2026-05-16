@@ -1,6 +1,6 @@
 import { config as loadDotenv } from "dotenv";
 import { applicationDefault, cert, getApps, initializeApp, type ServiceAccount } from "firebase-admin/app";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 
 type AidTypeSeed = {
   name: string;
@@ -45,18 +45,6 @@ const aidTypeSeeds: AidTypeSeed[] = [
   { name: "Cobija",                unit: "pieza", active: true },
   { name: "Balón",                 unit: "pieza", active: true },
 ];
-
-function hasArg(flag: string) {
-  return process.argv.includes(flag);
-}
-
-function getRequiredEnv(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
 
 function initializeAdmin() {
   if (getApps().length > 0) {
