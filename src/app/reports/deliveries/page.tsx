@@ -4,6 +4,7 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { ReportImageCell } from "@/components/reports/report-image-cell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
@@ -34,7 +35,17 @@ type Row = {
   status: string;
   locationMissing: boolean;
   locationMissingReason: string;
+  evidenceUrls: string[];
 };
+
+function getEvidenceUrls(doc: { get: (field: string) => unknown }): string[] {
+  const urls = doc.get("evidenceUrls");
+  if (Array.isArray(urls)) {
+    return urls.filter((url): url is string => typeof url === "string" && url.length > 0);
+  }
+  const legacyUrl = doc.get("imageURL") || doc.get("imageUrl");
+  return typeof legacyUrl === "string" && legacyUrl.length > 0 ? [legacyUrl] : [];
+}
 
 function formatQuantity(quantity: number | null, unit: string): string {
   if (quantity === null) return "—";
@@ -166,6 +177,7 @@ export default function DeliveriesReportPage() {
             status: (d.get("status") as string) || "",
             locationMissing: Boolean(d.get("locationMissing")),
             locationMissingReason: (d.get("locationMissingReason") as string) || "",
+            evidenceUrls: getEvidenceUrls(d),
           });
         });
       }
@@ -195,6 +207,7 @@ export default function DeliveriesReportPage() {
             status: (d.get("status") as string) || "",
             locationMissing: Boolean(d.get("locationMissing")),
             locationMissingReason: (d.get("locationMissingReason") as string) || "",
+            evidenceUrls: getEvidenceUrls(d),
           });
         });
       }
@@ -217,7 +230,7 @@ export default function DeliveriesReportPage() {
   function doExport() {
     exportToCsv(
       "entregas.csv",
-      ["Fecha", "Tipo", "Activista", "Nivel", "Tipo de Apoyo", "Comunidad", "Cantidad", "Destinatario", "Estado", "Comentario", "Ubicación faltante", "Razón"],
+      ["Fecha", "Tipo", "Activista", "Nivel", "Tipo de Apoyo", "Comunidad", "Cantidad", "Destinatario", "Estado", "Comentario", "Ubicación faltante", "Razón", "Evidencias"],
       sortedRows.map((r) => [
         fmtDateTime(r.date), r.type, r.activistName, r.levelName, r.aidTypeName, r.communityName,
         formatQuantity(r.quantity, r.unit),
@@ -226,6 +239,7 @@ export default function DeliveriesReportPage() {
         r.comment,
         r.locationMissing ? "Sí" : "No",
         r.locationMissingReason,
+        r.evidenceUrls.join(" "),
       ]),
     );
   }
@@ -296,7 +310,7 @@ export default function DeliveriesReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton cols={11} />
+            <TableSkeleton cols={12} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin resultados. Intenta ampliar el rango de fechas o ajustar los filtros.
@@ -317,6 +331,7 @@ export default function DeliveriesReportPage() {
                     <SortTh label="Estado"       field="status"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Comentario</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ubicación</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Evidencia</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -352,6 +367,13 @@ export default function DeliveriesReportPage() {
                         {r.locationMissing
                           ? <span className="text-amber-600" title={r.locationMissingReason || undefined}>{r.locationMissingReason || "Sin ubicación"}</span>
                           : "—"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <ReportImageCell
+                          imageUrl={r.evidenceUrls[0] ?? null}
+                          label={`Evidencia de entrega ${r.id}`}
+                          pending={r.status === "pending_sync" && r.evidenceUrls.length === 0}
+                        />
                       </td>
                     </tr>
                   ))}

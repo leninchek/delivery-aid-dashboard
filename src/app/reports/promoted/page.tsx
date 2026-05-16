@@ -4,6 +4,7 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { ReportImageCell } from "@/components/reports/report-image-cell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
@@ -40,6 +41,10 @@ type Row = {
   activeLabel: string;
   credentialStatus: CredentialStatus;
   credentialLabel: string;
+  credentialFrontUrl: string | null;
+  credentialBackUrl: string | null;
+  pendingCredentialFront: boolean;
+  pendingCredentialBack: boolean;
 };
 
 type SortKey = keyof Row;
@@ -197,6 +202,8 @@ export default function PromotedReportPage() {
           d.get("pendingCredentialFront"),
           d.get("pendingCredentialBack"),
         );
+        const credentialFrontUrl = (d.get("credentialFrontUrl") as string) || null;
+        const credentialBackUrl = (d.get("credentialBackUrl") as string) || null;
 
         return {
           id: d.id,
@@ -215,6 +222,10 @@ export default function PromotedReportPage() {
           activeLabel: ((d.get("active") as boolean) ?? true) ? "Activo" : "Inactivo",
           credentialStatus,
           credentialLabel: CREDENTIAL_LABELS[credentialStatus],
+          credentialFrontUrl,
+          credentialBackUrl,
+          pendingCredentialFront: Boolean(d.get("pendingCredentialFront")),
+          pendingCredentialBack: Boolean(d.get("pendingCredentialBack")),
         };
       }));
       setHasRun(true);
@@ -228,7 +239,7 @@ export default function PromotedReportPage() {
   function doExport() {
     exportToCsv(
       "promovidos.csv",
-      ["Fecha registro", "Nombre", "Telefono", "CURP", "Fecha nacimiento", "Activista", "Nivel", "Comunidad", "Estado", "Credencial"],
+      ["Fecha registro", "Nombre", "Telefono", "CURP", "Fecha nacimiento", "Activista", "Nivel", "Comunidad", "Estado", "Credencial", "INE frente", "INE reverso"],
       sortedRows.map((r) => [
         fmtDateTime(r.createdAt),
         r.name,
@@ -240,6 +251,8 @@ export default function PromotedReportPage() {
         r.communityName,
         r.activeLabel,
         r.credentialLabel,
+        r.credentialFrontUrl ?? "",
+        r.credentialBackUrl ?? "",
       ]),
     );
   }
@@ -326,7 +339,7 @@ export default function PromotedReportPage() {
             </p>
           </div>
           {isLoading ? (
-            <TableSkeleton cols={10} />
+            <TableSkeleton cols={12} />
           ) : sortedRows.length === 0 ? (
             <p className="py-12 text-center text-sm text-slate-400">
               Sin promovidos que coincidan con el periodo o los filtros activos.
@@ -346,6 +359,8 @@ export default function PromotedReportPage() {
                     <SortTh label="Comunidad" field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Estado" field="activeLabel" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
                     <SortTh label="Credencial" field="credentialLabel" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">INE frente</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">INE reverso</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -368,6 +383,20 @@ export default function PromotedReportPage() {
                       </td>
                       <td className="px-5 py-3">
                         <CredentialBadge status={r.credentialStatus} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <ReportImageCell
+                          imageUrl={r.credentialFrontUrl}
+                          label={`INE frente de ${r.name}`}
+                          pending={r.pendingCredentialFront}
+                        />
+                      </td>
+                      <td className="px-5 py-3">
+                        <ReportImageCell
+                          imageUrl={r.credentialBackUrl}
+                          label={`INE reverso de ${r.name}`}
+                          pending={r.pendingCredentialBack}
+                        />
                       </td>
                     </tr>
                   ))}
