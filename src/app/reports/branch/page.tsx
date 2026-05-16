@@ -145,11 +145,13 @@ export default function BranchReportPage() {
         const rank = selectedLevel?.rank ?? 0;
         branchMembers = allMembers.filter((m) => m.levelRank >= rank);
       } else {
+        const rootId = selectedMember!.id;
         branchMembers = [
           selectedMember!,
-          ...allMembers.filter((m) => m.path.includes(selectedMember!.id)),
+          ...allMembers.filter((m) => m.id !== rootId && m.path.includes(rootId)),
         ];
       }
+      branchMembers = Array.from(new Map(branchMembers.map((m) => [m.id, m])).values());
 
       const memberIds = new Set(branchMembers.map((m) => m.id));
 
@@ -310,9 +312,9 @@ export default function BranchReportPage() {
 
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={includePromoted}
-            onChange={(e) => setIncludePromoted(e.target.checked)}
+            onChange={(e) => { setIncludePromoted(e.target.checked); setHasRun(false); }}
             className="rounded border-slate-300" />
-          Incluir promovidos registrados
+          Incluir conteo de promovidos registrados
         </label>
 
         <div className="flex gap-3">

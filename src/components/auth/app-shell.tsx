@@ -18,6 +18,7 @@ const menuSections = [
       { href: "/reports/charts",      label: "Gráficas"                },
       { href: "/reports/deliveries",  label: "Entregas"                },
       { href: "/reports/activists",   label: "Actividad por Activista" },
+      { href: "/reports/promoted",    label: "Promovidos"              },
       { href: "/reports/communities", label: "Cobertura por Comunidad"    },
       { href: "/reports/authorities", label: "Autoridades por Comunidad" },
       { href: "/reports/branch",      label: "Rama Jerárquica"           },
@@ -131,7 +132,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform border-r border-slate-200 bg-white p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 shrink-0 transform border-r border-slate-200 bg-white p-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       } lg:block`}>
         <div className="mb-8 flex items-center justify-between">
@@ -202,7 +203,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 lg:px-8">
           <div className="flex items-center gap-4">
             <button
