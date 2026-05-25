@@ -15,8 +15,8 @@ type OrgLevelForm = {
 };
 
 const CAPABILITIES: { key: string; label: string }[] = [
-  { key: "can_create_direct_delivery",   label: "Registrar entrega directa" },
-  { key: "can_create_indirect_delivery", label: "Registrar entrega indirecta" },
+  { key: "can_create_direct_delivery",   label: "Registrar entrega interna" },
+  { key: "can_create_indirect_delivery", label: "Registrar entrega externa" },
   { key: "can_register_promoted",        label: "Registrar promovidos" },
   { key: "can_view_own_deliveries",      label: "Ver propias entregas" },
   { key: "can_view_own_promoted",        label: "Ver propios promovidos" },

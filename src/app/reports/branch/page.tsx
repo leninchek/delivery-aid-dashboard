@@ -209,7 +209,7 @@ export default function BranchReportPage() {
   }
 
   function doExport() {
-    const headers = ["Nombre", "Nivel", "Con beneficiario", "Sin beneficiario"];
+    const headers = ["Nombre", "Nivel", "Entrega interna", "Entrega externa"];
     if (includePromoted) headers.push("Promovidos");
     headers.push("Última Actividad");
     exportToCsv(

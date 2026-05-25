@@ -161,7 +161,7 @@ export default function ActivistsReportPage() {
   function doExport() {
     exportToCsv(
       "actividad-activistas.csv",
-      ["Nombre", "Nivel", "Con beneficiario", "Sin beneficiario", "Promovidos", "Última Actividad", "Estado"],
+      ["Nombre", "Nivel", "Entrega interna", "Entrega externa", "Promovidos", "Última Actividad", "Estado"],
       sortedRows.map((r) => [
         r.name, r.levelName,
         String(r.directCount), String(r.indirectCount), String(r.promotedCount),

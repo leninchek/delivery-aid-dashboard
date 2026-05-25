@@ -185,8 +185,8 @@ export default function ChartsPage() {
       const inDay = (d: Date | null) => d !== null && d >= day && d < next;
       return {
         fecha:      dayLabel(day),
-        Directas:   directEntries.filter((e)   => inDay(e.createdAt)).length,
-        Indirectas: indirectEntries.filter((e) => inDay(e.createdAt)).length,
+        Internas:  directEntries.filter((e)   => inDay(e.createdAt)).length,
+        Externas:  indirectEntries.filter((e) => inDay(e.createdAt)).length,
       };
     });
   }, [days, directEntries, indirectEntries]);
@@ -271,9 +271,9 @@ export default function ChartsPage() {
       {/* ── Charts 2 + 3 ──────────────────────────────────────────────────── */}
       <div className="grid gap-6 xl:grid-cols-2">
 
-        {/* Chart 2: Directas vs Indirectas por día */}
+        {/* Chart 2: Internas vs Externas por día */}
         <ChartCard
-          title="Directas vs Indirectas"
+          title="Internas vs Externas"
           description="Volumen diario — últimos 14 días"
           badge={`${totalDeliveries14d} total`}
           empty={totalDeliveries14d === 0}
@@ -302,8 +302,8 @@ export default function ChartsPage() {
                 iconType="circle"
                 iconSize={8}
               />
-              <Bar dataKey="Directas"   fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="Indirectas" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="Internas"  fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="Externas"  fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -311,7 +311,7 @@ export default function ChartsPage() {
         {/* Chart 3: Tipos de apoyo */}
         <ChartCard
           title="Entregas por tipo de apoyo"
-          description="Top 8 tipos — directas e indirectas combinadas"
+          description="Top 8 tipos — internas y externas combinadas"
           badge={`${aidTypeData.length} tipos`}
           empty={aidTypeData.length === 0}
         >
