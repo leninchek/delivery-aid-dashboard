@@ -2,9 +2,14 @@ import { config as loadDotenv } from "dotenv";
 import { applicationDefault, cert, getApps, initializeApp, type ServiceAccount } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
-type CommunitySeed = {
+type AuthorityType = "delegate" | "sub_delegate" | "mayor" | "ejidal_commissioner";
+
+type AuthoritySeed = {
+  type: AuthorityType;
   name: string;
-  active: boolean;
+  phone: string;
+  curp: string;
+  birthDate: string;
 };
 
 const ENV_FILES = [process.env.DOTENV_CONFIG_PATH, ".env.local", ".env"].filter(
@@ -15,26 +20,37 @@ for (const envFile of ENV_FILES) {
   loadDotenv({ path: envFile, override: false });
 }
 
-const COLLECTION_CITIES      = "Cities";
-const COLLECTION_COMMUNITIES = "Communities";
-const TARGET_CITY            = "Felipe Carrillo Puerto";
+const COLLECTION_AUTHORITIES = "Authorities";
 
-const communitySeeds: CommunitySeed[] = [
-  { name: "Tihosuco",              active: true },
-  { name: "Noh-Bec",               active: true },
-  { name: "X-Hazil",               active: true },
-  { name: "Señor",                 active: true },
-  { name: "Chan Santa Cruz",       active: true },
-  { name: "Uh-May",                active: true },
-  { name: "Chancenote",            active: true },
-  { name: "Peto",                  active: true },
-  { name: "Felipe Carrillo Puerto", active: true },
-  { name: "Sabán",                 active: true },
-  { name: "Dziuché",               active: true },
-  { name: "Tahdziú",               active: true },
-  { name: "Xcháac",                active: true },
-  { name: "Valladolid",            active: true },
-  { name: "Chacchoben",            active: true },
+const authoritySeeds: AuthoritySeed[] = [
+  {
+    type: "mayor",
+    name: "Pedro Francisco Balam Dzul",
+    phone: "9971000001",
+    curp: "BADP680915HQRLDR01",
+    birthDate: "1968-09-15",
+  },
+  {
+    type: "delegate",
+    name: "Juan Carlos García López",
+    phone: "9971000002",
+    curp: "GALJ800512HQRRCR02",
+    birthDate: "1980-05-12",
+  },
+  {
+    type: "sub_delegate",
+    name: "María Elena Martínez Chan",
+    phone: "9971000003",
+    curp: "MACE750320MQRTLN03",
+    birthDate: "1975-03-20",
+  },
+  {
+    type: "ejidal_commissioner",
+    name: "Rosa Isidra Poot Nah",
+    phone: "9971000004",
+    curp: "PONR720605MQRTSR04",
+    birthDate: "1972-06-05",
+  },
 ];
 
 function hasArg(flag: string) {
@@ -85,17 +101,11 @@ function initializeAdmin() {
   });
 }
 
-async function findCityByName(cityName: string) {
+async function findExistingDocumentByCurp(curp: string) {
   const db       = getFirestore();
-  const snapshot = await db.collection(COLLECTION_CITIES).where("name", "==", cityName).get();
-  return snapshot.docs[0] ?? null;
-}
-
-async function findExistingDocumentByName(name: string) {
-  const db       = getFirestore();
-  const snapshot = await db.collection(COLLECTION_COMMUNITIES).where("name", "==", name).get();
+  const snapshot = await db.collection(COLLECTION_AUTHORITIES).where("curp", "==", curp).get();
   if (snapshot.docs.length > 1) {
-    throw new Error(`Multiple ${COLLECTION_COMMUNITIES} documents found for name: ${name}`);
+    throw new Error(`Multiple ${COLLECTION_AUTHORITIES} documents found for CURP: ${curp}`);
   }
   return snapshot.docs[0] ?? null;
 }
@@ -106,44 +116,34 @@ async function main() {
   getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
   initializeAdmin();
 
-  const db = getFirestore();
-
   console.log(
-    `${isDryRun ? "[dry-run] " : ""}Seeding ${COLLECTION_COMMUNITIES} for project: ${getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID")}`
+    `${isDryRun ? "[dry-run] " : ""}Seeding ${COLLECTION_AUTHORITIES} for project: ${getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID")}\n`
   );
-  console.log(`Prerequisite: city "${TARGET_CITY}" must exist (run seed:cities first).\n`);
-
-  const cityDoc = await findCityByName(TARGET_CITY);
-  if (!cityDoc) {
-    if (!isDryRun) throw new Error(`City "${TARGET_CITY}" not found in ${COLLECTION_CITIES}. Run seed:cities first.`);
-    console.log(`[dry-run] City "${TARGET_CITY}" not in Firestore — using placeholder ID for simulation.\n`);
-  }
-
-  const cityId = cityDoc?.id ?? `<${TARGET_CITY}>`;
-  if (cityDoc) console.log(`Resolved city "${TARGET_CITY}" -> docId=${cityId}\n`);
 
   let created = 0;
   let updated = 0;
 
-  for (const seed of communitySeeds) {
-    const existingDoc = await findExistingDocumentByName(seed.name);
-    const targetRef   = existingDoc?.ref ?? db.collection(COLLECTION_COMMUNITIES).doc();
+  for (const seed of authoritySeeds) {
+    const existingDoc = await findExistingDocumentByCurp(seed.curp);
+    const targetRef   = existingDoc?.ref ?? getFirestore().collection(COLLECTION_AUTHORITIES).doc();
     const payload = {
+      type:      seed.type,
       name:      seed.name,
-      cityId,
-      active:    seed.active,
+      phone:     seed.phone,
+      curp:      seed.curp,
+      birthDate: seed.birthDate,
       updatedAt: FieldValue.serverTimestamp(),
     };
 
     if (!existingDoc) {
       created++;
-      console.log(`create "${seed.name}" -> docId=${targetRef.id}`);
+      console.log(`create "${seed.name}" (${seed.type}) -> docId=${targetRef.id}`);
       if (!isDryRun) {
         await targetRef.set({ ...payload, createdAt: FieldValue.serverTimestamp() });
       }
     } else {
       updated++;
-      console.log(`update "${seed.name}" -> docId=${targetRef.id}`);
+      console.log(`update "${seed.name}" (${seed.type}) -> docId=${targetRef.id}`);
       if (!isDryRun) {
         await targetRef.set(payload, { merge: true });
       }

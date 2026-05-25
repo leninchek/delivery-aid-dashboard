@@ -25,6 +25,7 @@ interface UseCatalogCrudOptions<TItem extends WithId, TForm> {
   mapFormToFirestore: (form: TForm) => Record<string, unknown>;
   mapItemToForm: (item: TItem) => TForm;
   validate?: (form: TForm, editingId: string | null, items: TItem[]) => string | null;
+  validateFields?: (form: TForm) => Record<string, string>;
   onSuccess?: (action: "create" | "update" | "delete") => void;
 }
 
@@ -36,6 +37,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
   mapFormToFirestore,
   mapItemToForm,
   validate,
+  validateFields,
   onSuccess,
 }: UseCatalogCrudOptions<TItem, TForm>) {
   const [items, setItems] = useState<TItem[]>([]);
@@ -44,6 +46,7 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -65,18 +68,29 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
     setForm(defaultForm);
     setEditingId(null);
     setError(null);
+    setFieldErrors({});
   }
 
   function startEdit(item: TItem) {
     setForm(mapItemToForm(item));
     setEditingId(item.id);
     setError(null);
+    setFieldErrors({});
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const db = getFirestoreDb();
     if (!db) return;
+
+    if (validateFields) {
+      const errors = validateFields(form);
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        return;
+      }
+      setFieldErrors({});
+    }
 
     if (validate) {
       const validationError = validate(form, editingId, items);
@@ -154,6 +168,8 @@ export function useCatalogCrud<TItem extends WithId, TForm>({
     isDeletingId,
     error,
     setError,
+    fieldErrors,
+    setFieldErrors,
     search,
     setSearch,
     resetForm,

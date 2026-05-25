@@ -11,7 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
-import { fmtDate, parseTimestamp } from "@/lib/report-utils";
+import { fmtBirthDate } from "@/lib/report-utils";
 
 type PromotedPerson = {
   id: string;
@@ -363,7 +363,7 @@ function DetailModal({ person, activistName, communityName, onClose, onZoom }: D
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <DataRow label="CURP" value={<span className="font-mono text-xs">{person.curp}</span>} />
             <DataRow label="Teléfono" value={person.phone} />
-            <DataRow label="Fecha de nacimiento" value={fmtDate(parseTimestamp(person.birthDate))} />
+            <DataRow label="Fecha de nacimiento" value={fmtBirthDate(person.birthDate)} />
             <DataRow label="Comunidad" value={communityName} />
             <DataRow label="Activista" value={activistName} />
           </div>

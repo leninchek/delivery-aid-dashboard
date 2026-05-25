@@ -5,6 +5,8 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { authorityTypeDisplayMap, authorityTypeOptions, formatDateInput } from "@/lib/utils";
+import { fmtBirthDate } from "@/lib/report-utils";
+import { validateMexicanPhone, validateCurp, validateBirthDate } from "@/utils/validators";
 import { showToast } from "@/hooks/useToast";
 import type { Authority, AuthorityType } from "@/types/shared";
 
@@ -24,7 +26,7 @@ export default function AuthoritiesPage() {
 
   const {
     items, form, setForm, editingId,
-    isSaving, isDeletingId, error, search, setSearch,
+    isSaving, isDeletingId, error, fieldErrors, setFieldErrors, search, setSearch,
     resetForm, startEdit, handleSubmit, handleDelete,
   } = useCatalogCrud<Authority, AuthorityForm>({
     collectionName: "Authorities",
@@ -49,13 +51,18 @@ export default function AuthoritiesPage() {
       name: f.name.trim(),
       phone: f.phone.trim(),
       curp: f.curp.trim().toUpperCase(),
-      birthDate: f.birthDate ? new Date(f.birthDate) : null,
+      birthDate: f.birthDate || null,
     }),
-    validate: (f) => {
-      if (!f.name.trim() || !f.phone.trim() || !f.curp.trim() || !f.birthDate) {
-        return "Nombre, teléfono, CURP y fecha de nacimiento son obligatorios.";
-      }
-      return null;
+    validateFields: (f) => {
+      const errs: Record<string, string> = {};
+      if (!f.name.trim()) errs.name = "El nombre es obligatorio.";
+      const phoneErr = validateMexicanPhone(f.phone);
+      if (phoneErr) errs.phone = phoneErr;
+      const curpErr = validateCurp(f.curp);
+      if (curpErr) errs.curp = curpErr;
+      const birthErr = validateBirthDate(f.birthDate);
+      if (birthErr) errs.birthDate = birthErr;
+      return errs;
     },
     onSuccess: (action) => showToast(action === "delete" ? "Autoridad eliminada." : "Guardado correctamente."),
   });
@@ -129,7 +136,7 @@ export default function AuthoritiesPage() {
                     <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                     <td className="px-4 py-3 text-slate-700">{item.phone}</td>
                     <td className="px-4 py-3 text-slate-700">{item.curp}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.birthDate || "-"}</td>
+                    <td className="px-4 py-3 text-slate-700">{fmtBirthDate(item.birthDate)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button
@@ -183,8 +190,8 @@ export default function AuthoritiesPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Tipo</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Tipo</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm((c) => ({ ...c, type: e.target.value as AuthorityType }))}
@@ -194,54 +201,80 @@ export default function AuthoritiesPage() {
                   <option key={type} value={type}>{authorityTypeDisplayMap[type]}</option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Nombre</span>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Nombre completo</label>
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
+                onChange={(e) => {
+                  setForm((c) => ({ ...c, name: e.target.value }));
+                  setFieldErrors((prev) => { const n = { ...prev }; delete n.name; return n; });
+                }}
                 placeholder="Nombre completo"
-                required
+                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.name ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               />
-            </label>
+              {fieldErrors.name && <p className="text-xs text-rose-600">{fieldErrors.name}</p>}
+            </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Teléfono</span>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="9991234567"
-                required
-              />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.phone}
+                  maxLength={10}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((c) => ({ ...c, phone: digits }));
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.phone; return n; });
+                  }}
+                  placeholder="10 dígitos"
+                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.phone ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
+                />
+                {fieldErrors.phone && <p className="text-xs text-rose-600">{fieldErrors.phone}</p>}
+              </div>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>CURP</span>
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700">Fecha de nacimiento</label>
+                <input
+                  type="date"
+                  value={form.birthDate}
+                  min={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 100); return d.toISOString().slice(0, 10); })()}
+                  max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10); })()}
+                  onChange={(e) => {
+                    setForm((c) => ({ ...c, birthDate: e.target.value }));
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.birthDate; return n; });
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.birthDate ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
+                />
+                {fieldErrors.birthDate && <p className="text-xs text-rose-600">{fieldErrors.birthDate}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-slate-700">CURP</label>
+                <span className={`text-xs tabular-nums ${form.curp.length === 18 ? "text-emerald-600" : form.curp.length > 0 ? "text-slate-400" : "text-slate-300"}`}>
+                  {form.curp.length}/18
+                </span>
+              </div>
               <input
                 type="text"
                 value={form.curp}
-                onChange={(e) => setForm((c) => ({ ...c, curp: e.target.value.toUpperCase() }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="CURP obligatoria"
-                required
+                maxLength={18}
+                onChange={(e) => {
+                  const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
+                  setForm((c) => ({ ...c, curp: clean }));
+                  setFieldErrors((prev) => { const n = { ...prev }; delete n.curp; return n; });
+                }}
+                placeholder="18 caracteres"
+                className={`w-full rounded-lg border px-3 py-2 font-mono outline-none transition focus:border-slate-900 ${fieldErrors.curp ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
               />
-            </label>
-
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Fecha de nacimiento</span>
-              <input
-                type="date"
-                value={form.birthDate}
-                onChange={(e) => setForm((c) => ({ ...c, birthDate: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                required
-              />
-            </label>
+              {fieldErrors.curp && <p className="text-xs text-rose-600">{fieldErrors.curp}</p>}
+            </div>
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

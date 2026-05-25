@@ -123,7 +123,7 @@ function initializeAdmin() {
   });
 }
 
-async function resolveLevelIdByName(levelName: string) {
+async function resolveLevelIdByName(levelName: string, isDryRun: boolean) {
   const db = getFirestore();
   const snapshot = await db
     .collection(COLLECTION_ORG_LEVELS)
@@ -133,6 +133,7 @@ async function resolveLevelIdByName(levelName: string) {
   const activeDocs = snapshot.docs.filter((doc) => doc.get("active") !== false);
 
   if (activeDocs.length === 0) {
+    if (isDryRun) return `<${levelName}>`;
     throw new Error(`No active OrgLevels document found for name: ${levelName}`);
   }
 
@@ -143,18 +144,18 @@ async function resolveLevelIdByName(levelName: string) {
   return activeDocs[0].id;
 }
 
-async function resolveSeeds() {
+async function resolveSeeds(isDryRun: boolean) {
   const resolved: ResolvedSeed[] = [];
 
   for (const seed of directDeliverySeeds) {
     const fromLevelIds: string[] = [];
     for (const levelName of seed.fromLevelNames) {
-      fromLevelIds.push(await resolveLevelIdByName(levelName));
+      fromLevelIds.push(await resolveLevelIdByName(levelName, isDryRun));
     }
 
     const toLevelIds: string[] = [];
     for (const levelName of seed.toLevelNames) {
-      toLevelIds.push(await resolveLevelIdByName(levelName));
+      toLevelIds.push(await resolveLevelIdByName(levelName, isDryRun));
     }
 
     resolved.push({
@@ -192,7 +193,7 @@ async function main() {
   initializeAdmin();
 
   const db = getFirestore();
-  const resolvedSeeds = await resolveSeeds();
+  const resolvedSeeds = await resolveSeeds(isDryRun);
 
   let created = 0;
   let updated = 0;

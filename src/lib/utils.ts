@@ -15,6 +15,10 @@ export function formatDateInput(value: unknown): string {
     return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
   }
 
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
   return "";
 }
 

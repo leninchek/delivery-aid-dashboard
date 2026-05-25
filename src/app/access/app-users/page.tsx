@@ -575,7 +575,7 @@ export default function AppUsersPage() {
             {/* Superior jerárquico */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700">
-                Superior jerárquico <span className="font-normal text-slate-400">(opcional)</span>
+                Superior directo <span className="font-normal text-slate-400">(opcional)</span>
               </label>
               <select
                 value={form.parentId}

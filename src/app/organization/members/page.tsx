@@ -232,12 +232,16 @@ export default function OrgMembersPage() {
   const routeById = useMemo(() => new Map(routes.map((item) => [item.id, item.name])), [routes]);
 
   const parentCandidates = useMemo(() => {
-    if (!editingId) {
-      return items;
-    }
-
-    return items.filter((item) => item.id !== editingId && !item.path.includes(editingId));
-  }, [editingId, items]);
+    const candidates = editingId
+      ? items.filter((item) => item.id !== editingId && !item.path.includes(editingId))
+      : items;
+    return [...candidates].sort((a, b) => {
+      const rankA = levelById.get(a.levelId)?.rank ?? 999;
+      const rankB = levelById.get(b.levelId)?.rank ?? 999;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.name.localeCompare(b.name, "es");
+    });
+  }, [editingId, items, levelById]);
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -357,7 +361,7 @@ export default function OrgMembersPage() {
       name: form.name.trim(),
       phone: form.phone.trim(),
       curp: form.curp.trim().toUpperCase(),
-      birthDate: new Date(form.birthDate),
+      birthDate: form.birthDate,
       levelId: form.levelId,
       parentId: form.parentId,
       path: memberPath,

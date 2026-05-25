@@ -75,3 +75,22 @@ export function parseTimestamp(value: unknown): Date | null {
     return (value as { toDate: () => Date }).toDate();
   return null;
 }
+
+// Displays a date-only field (birthDate) correctly regardless of whether it is stored
+// as a plain ISO string ("1989-09-01") or a Firestore Timestamp at UTC midnight.
+// Uses timeZone:"UTC" so the day never shifts due to the client's local offset.
+export function fmtBirthDate(value: unknown): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  };
+  if (!value) return "—";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-MX", opts);
+  }
+  if (value instanceof Date)
+    return value.toLocaleDateString("es-MX", opts);
+  if (typeof value === "object" && value !== null && "toDate" in value)
+    return (value as { toDate: () => Date }).toDate().toLocaleDateString("es-MX", opts);
+  return "—";
+}
