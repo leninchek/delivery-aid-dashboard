@@ -9,13 +9,9 @@ import { AuthProvider, useAuth } from "./auth-provider";
 
 const menuSections = [
   {
-    title: "General",
-    links: [{ href: "/", label: "Panel de Control" }],
-  },
-  {
     title: "Reportes",
     links: [
-      { href: "/reports/charts",      label: "Gráficas"                },
+      { href: "/reports/charts",      label: "Panel de Control"        },
       { href: "/reports/deliveries",  label: "Entregas"                },
       { href: "/reports/activists",   label: "Actividad por Activista" },
       { href: "/reports/promoted",    label: "Promovidos"              },

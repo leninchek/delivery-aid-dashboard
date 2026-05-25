@@ -24,6 +24,8 @@ import { parseTimestamp } from "@/lib/report-utils";
 
 type DirectEntry    = { id: string; createdAt: Date | null; fromOrgId: string; aidTypeId: string };
 type IndirectEntry  = { id: string; createdAt: Date | null; orgMemberId: string; aidTypeId: string };
+type PromotedEntry  = { id: string; createdAt: Date | null };
+type CampaignEntry  = { id: string; status: string; statsSent: number; statsTotal: number };
 type AidTypeEntry   = { id: string; name: string };
 type MemberEntry    = { id: string; communityId: string | null };
 type CommunityEntry = { id: string; name: string };
@@ -47,22 +49,37 @@ function dayLabel(d: Date): string {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
 }
 
+function computeTrend(current: number, prev: number): number | null {
+  if (prev === 0) return null;
+  return Math.round(((current - prev) / prev) * 100);
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChartsPage() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 
-  const [directEntries,   setDirectEntries]   = useState<DirectEntry[]>([]);
-  const [indirectEntries, setIndirectEntries] = useState<IndirectEntry[]>([]);
-  const [aidTypes,        setAidTypes]        = useState<AidTypeEntry[]>([]);
-  const [orgMembers,      setOrgMembers]      = useState<MemberEntry[]>([]);
-  const [communities,     setCommunities]     = useState<CommunityEntry[]>([]);
-  const [error,           setError]           = useState<string | null>(null);
+  const [directEntries,         setDirectEntries]         = useState<DirectEntry[]>([]);
+  const [indirectEntries,       setIndirectEntries]       = useState<IndirectEntry[]>([]);
+  const [promotedEntries,       setPromotedEntries]       = useState<PromotedEntry[]>([]);
+  const [campaigns,             setCampaigns]             = useState<CampaignEntry[]>([]);
+  const [aidTypes,              setAidTypes]              = useState<AidTypeEntry[]>([]);
+  const [orgMembers,            setOrgMembers]            = useState<MemberEntry[]>([]);
+  const [communities,           setCommunities]           = useState<CommunityEntry[]>([]);
+  const [orgMembersCount,       setOrgMembersCount]       = useState(0);
+  const [activeOrgMembersCount, setActiveOrgMembersCount] = useState(0);
+  const [appUsersCount,         setAppUsersCount]         = useState(0);
+  const [activeAppUsersCount,   setActiveAppUsersCount]   = useState(0);
+  const [error,                 setError]                 = useState<string | null>(null);
 
-  const { fourteenDaysAgo, days } = useMemo(() => {
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    return { fourteenDaysAgo, days: buildDays(14) };
+  const { todayStart, weekStart, prevWeekStart, thirtyDaysAgo, days } = useMemo(() => {
+    const now = new Date();
+    const todayStart    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart     = new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000);
+    const prevWeekStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return { todayStart, weekStart, prevWeekStart, thirtyDaysAgo, days: buildDays(14) };
   }, []);
 
   useEffect(() => {
@@ -70,7 +87,7 @@ export default function ChartsPage() {
     const db = getFirestoreDb();
     if (!db) return;
 
-    const cutoff = Timestamp.fromDate(fourteenDaysAgo);
+    const cutoff = Timestamp.fromDate(thirtyDaysAgo);
 
     const unsubs = [
       onSnapshot(
@@ -96,6 +113,26 @@ export default function ChartsPage() {
       ),
 
       onSnapshot(
+        query(collection(db, "Promoted"), where("createdAt", ">=", cutoff)),
+        (snap) => setPromotedEntries(snap.docs.map((d) => ({
+          id:        d.id,
+          createdAt: parseTimestamp(d.get("createdAt")),
+        }))),
+        (err) => setError(err.message),
+      ),
+
+      onSnapshot(
+        collection(db, "PushCampaigns"),
+        (snap) => setCampaigns(snap.docs.map((d) => ({
+          id:         d.id,
+          status:     (d.get("status") as string) || "draft",
+          statsSent:  (d.get("stats.sent")  as number) || 0,
+          statsTotal: (d.get("stats.total") as number) || 0,
+        }))),
+        (err) => setError(err.message),
+      ),
+
+      onSnapshot(
         collection(db, "AidTypes"),
         (snap) => setAidTypes(snap.docs.map((d) => ({
           id:   d.id,
@@ -106,10 +143,14 @@ export default function ChartsPage() {
 
       onSnapshot(
         collection(db, "OrgMembers"),
-        (snap) => setOrgMembers(snap.docs.map((d) => ({
-          id:          d.id,
-          communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
-        }))),
+        (snap) => {
+          setOrgMembersCount(snap.size);
+          setActiveOrgMembersCount(snap.docs.filter((d) => d.get("active") ?? true).length);
+          setOrgMembers(snap.docs.map((d) => ({
+            id:          d.id,
+            communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
+          })));
+        },
         (err) => setError(err.message),
       ),
 
@@ -121,12 +162,60 @@ export default function ChartsPage() {
         }))),
         (err) => setError(err.message),
       ),
+
+      onSnapshot(
+        collection(db, "SystemUsers"),
+        (snap) => {
+          const appUsers = snap.docs.filter((d) => d.get("type") === "app");
+          setAppUsersCount(appUsers.length);
+          setActiveAppUsersCount(appUsers.filter((d) => d.get("active") ?? true).length);
+        },
+        (err) => setError(err.message),
+      ),
     ];
 
     return () => unsubs.forEach((u) => u());
-  }, [isConfigured, fourteenDaysAgo]);
+  }, [isConfigured, thirtyDaysAgo]);
+
+  // ── KPI computations ──────────────────────────────────────────────────────
+
+  const directToday      = useMemo(() => directEntries.filter((d) => d.createdAt && d.createdAt >= todayStart).length,      [directEntries, todayStart]);
+  const directThisWeek   = useMemo(() => directEntries.filter((d) => d.createdAt && d.createdAt >= weekStart).length,        [directEntries, weekStart]);
+  const directPrevWeek   = useMemo(() => directEntries.filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart).length, [directEntries, prevWeekStart, weekStart]);
+  const indirectThisWeek = useMemo(() => indirectEntries.filter((d) => d.createdAt && d.createdAt >= weekStart).length,      [indirectEntries, weekStart]);
+  const indirectPrevWeek = useMemo(() => indirectEntries.filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart).length, [indirectEntries, prevWeekStart, weekStart]);
+  const promotedThisWeek = useMemo(() => promotedEntries.filter((p) => p.createdAt && p.createdAt >= weekStart).length,      [promotedEntries, weekStart]);
+  const promotedPrevWeek = useMemo(() => promotedEntries.filter((p) => p.createdAt && p.createdAt >= prevWeekStart && p.createdAt < weekStart).length, [promotedEntries, prevWeekStart, weekStart]);
+
+  const activeActivistsThisWeek = useMemo(() => {
+    const ids = new Set<string>();
+    directEntries.filter((d) => d.createdAt && d.createdAt >= weekStart && d.fromOrgId).forEach((d) => ids.add(d.fromOrgId));
+    indirectEntries.filter((d) => d.createdAt && d.createdAt >= weekStart && d.orgMemberId).forEach((d) => ids.add(d.orgMemberId));
+    return ids.size;
+  }, [directEntries, indirectEntries, weekStart]);
+
+  const activeActivistsPrevWeek = useMemo(() => {
+    const ids = new Set<string>();
+    directEntries.filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart && d.fromOrgId).forEach((d) => ids.add(d.fromOrgId));
+    indirectEntries.filter((d) => d.createdAt && d.createdAt >= prevWeekStart && d.createdAt < weekStart && d.orgMemberId).forEach((d) => ids.add(d.orgMemberId));
+    return ids.size;
+  }, [directEntries, indirectEntries, prevWeekStart, weekStart]);
+
+  const pushReachRate = useMemo(() => {
+    const sent = campaigns.filter((c) => c.status === "sent" || c.status === "partial_failed");
+    const totalSent     = sent.reduce((acc, c) => acc + c.statsSent,  0);
+    const totalTargeted = sent.reduce((acc, c) => acc + c.statsTotal, 0);
+    if (totalTargeted === 0) return null;
+    return Math.round((totalSent / totalTargeted) * 100);
+  }, [campaigns]);
+
+  const sentCampaignsCount = useMemo(
+    () => campaigns.filter((c) => c.status === "sent" || c.status === "partial_failed").length,
+    [campaigns],
+  );
 
   // ── Chart 1: Entregas por comunidad × fecha ───────────────────────────────
+
   const TOP_COMMUNITIES = 8;
 
   const topCommunityNames = useMemo(() => {
@@ -156,7 +245,7 @@ export default function ChartsPage() {
     const topSet            = new Set(topCommunityNames);
 
     return days.map((day) => {
-      const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+      const next  = new Date(day.getTime() + 24 * 60 * 60 * 1000);
       const inDay = (d: Date | null) => d !== null && d >= day && d < next;
 
       const row: Record<string, string | number> = { fecha: dayLabel(day) };
@@ -179,21 +268,24 @@ export default function ChartsPage() {
   }, [days, directEntries, indirectEntries, orgMembers, communities, topCommunityNames]);
 
   // ── Chart 2: Entregas por día ──────────────────────────────────────────────
+
   const dailyData = useMemo(() => {
     return days.map((day) => {
-      const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+      const next  = new Date(day.getTime() + 24 * 60 * 60 * 1000);
       const inDay = (d: Date | null) => d !== null && d >= day && d < next;
       return {
-        fecha:      dayLabel(day),
-        Internas:  directEntries.filter((e)   => inDay(e.createdAt)).length,
-        Externas:  indirectEntries.filter((e) => inDay(e.createdAt)).length,
+        fecha:    dayLabel(day),
+        Internas: directEntries.filter((e)   => inDay(e.createdAt)).length,
+        Externas: indirectEntries.filter((e) => inDay(e.createdAt)).length,
       };
     });
   }, [days, directEntries, indirectEntries]);
 
-  const totalDeliveries14d = directEntries.length + indirectEntries.length;
+  const totalDeliveries14d = directEntries.filter((e) => e.createdAt && e.createdAt >= days[0]).length
+                           + indirectEntries.filter((e) => e.createdAt && e.createdAt >= days[0]).length;
 
   // ── Chart 3: Entregas por tipo de apoyo ───────────────────────────────────
+
   const aidTypeData = useMemo(() => {
     const counts = new Map<string, number>();
     [...directEntries, ...indirectEntries].forEach((e) => {
@@ -211,9 +303,9 @@ export default function ChartsPage() {
   return (
     <section className="space-y-8">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Gráficas</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Panel de Control</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Visualización operativa en tiempo real — últimos 14 días.
+          Métricas y gráficas operativas en tiempo real.
         </p>
       </header>
 
@@ -222,6 +314,80 @@ export default function ChartsPage() {
           {error}
         </p>
       )}
+
+      {/* ── KPIs: Operación ───────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          Operación — esta semana
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Entregas internas"
+            primary={directThisWeek}
+            primarySub="esta semana"
+            secondary={`${directToday} hoy · ${directEntries.length} en 30 días`}
+            color="blue"
+            trend={computeTrend(directThisWeek, directPrevWeek)}
+          />
+          <KpiCard
+            label="Entregas externas"
+            primary={indirectThisWeek}
+            primarySub="esta semana"
+            secondary={`${indirectEntries.length} en 30 días`}
+            color="violet"
+            trend={computeTrend(indirectThisWeek, indirectPrevWeek)}
+          />
+          <KpiCard
+            label="Promovidos registrados"
+            primary={promotedThisWeek}
+            primarySub="esta semana"
+            secondary={`${promotedEntries.length} en 30 días`}
+            color="emerald"
+            trend={computeTrend(promotedThisWeek, promotedPrevWeek)}
+          />
+          <KpiCard
+            label="Activistas activos"
+            primary={activeActivistsThisWeek}
+            primarySub="esta semana"
+            secondary={`de ${activeOrgMembersCount} miembros activos`}
+            color="amber"
+            trend={computeTrend(activeActivistsThisWeek, activeActivistsPrevWeek)}
+          />
+        </div>
+      </div>
+
+      {/* ── KPIs: Estructura ──────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+          Estructura
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Miembros org."
+            primary={activeOrgMembersCount}
+            primarySub="activos"
+            secondary={`${orgMembersCount} total`}
+          />
+          <KpiCard
+            label="Usuarios app"
+            primary={activeAppUsersCount}
+            primarySub="activos"
+            secondary={`${appUsersCount} registrados`}
+          />
+          <KpiCard
+            label="Alcance push"
+            primary={pushReachRate !== null ? `${pushReachRate}%` : "—"}
+            primarySub={pushReachRate !== null ? "entregado" : "sin campañas"}
+            secondary={`${sentCampaignsCount} campañas enviadas`}
+          />
+          <KpiCard
+            label="Campañas push"
+            primary={campaigns.length}
+            primarySub="registradas"
+            secondary={`${sentCampaignsCount} enviadas`}
+          />
+        </div>
+      </div>
 
       {/* ── Chart 1: Entregas por comunidad × fecha ────────────────────────── */}
       <ChartCard
@@ -233,27 +399,10 @@ export default function ChartsPage() {
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={dailyCommunityData} margin={{ top: 4, right: 16, left: -8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="fecha"
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
-              cursor={{ fill: "#f8fafc" }}
-            />
-            <Legend
-              wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
-              iconType="circle"
-              iconSize={8}
-            />
+            <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} cursor={{ fill: "#f8fafc" }} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} iconType="circle" iconSize={8} />
             {topCommunityNames.map((name, i) => (
               <Bar
                 key={name}
@@ -281,29 +430,12 @@ export default function ChartsPage() {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={dailyData} margin={{ top: 4, right: 16, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis
-                dataKey="fecha"
-                tick={{ fontSize: 11, fill: "#94a3b8" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fontSize: 11, fill: "#94a3b8" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
-                cursor={{ fill: "#f8fafc" }}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
-                iconType="circle"
-                iconSize={8}
-              />
-              <Bar dataKey="Internas"  fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="Externas"  fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} cursor={{ fill: "#f8fafc" }} />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} iconType="circle" iconSize={8} />
+              <Bar dataKey="Internas" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="Externas" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -335,11 +467,7 @@ export default function ChartsPage() {
                 contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                 formatter={(value, name) => [`${value} entregas`, name]}
               />
-              <Legend
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                iconType="circle"
-                iconSize={8}
-              />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" iconSize={8} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -352,17 +480,9 @@ export default function ChartsPage() {
 // ── ChartCard ─────────────────────────────────────────────────────────────────
 
 function ChartCard({
-  title,
-  description,
-  badge,
-  empty,
-  children,
+  title, description, badge, empty, children,
 }: {
-  title: string;
-  description: string;
-  badge: string;
-  empty: boolean;
-  children: React.ReactNode;
+  title: string; description: string; badge: string; empty: boolean; children: React.ReactNode;
 }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-6">
@@ -375,7 +495,6 @@ function ChartCard({
           {badge}
         </span>
       </div>
-
       <div className="mt-6">
         {empty ? (
           <div className="flex h-[280px] items-center justify-center rounded-lg bg-slate-50">
@@ -385,6 +504,39 @@ function ChartCard({
           children
         )}
       </div>
+    </article>
+  );
+}
+
+// ── KpiCard ───────────────────────────────────────────────────────────────────
+
+type KpiColor = "blue" | "violet" | "emerald" | "amber";
+
+const colorMap: Record<KpiColor, { card: string; number: string }> = {
+  blue:    { card: "border-blue-100 bg-blue-50",       number: "text-blue-700"    },
+  violet:  { card: "border-violet-100 bg-violet-50",   number: "text-violet-700"  },
+  emerald: { card: "border-emerald-100 bg-emerald-50", number: "text-emerald-700" },
+  amber:   { card: "border-amber-100 bg-amber-50",     number: "text-amber-700"   },
+};
+
+function KpiCard({
+  label, primary, primarySub, secondary, color, trend,
+}: {
+  label: string; primary: number | string; primarySub: string; secondary: string;
+  color?: KpiColor; trend?: number | null;
+}) {
+  const styles = color ? colorMap[color] : { card: "border-slate-200 bg-white", number: "text-slate-900" };
+  return (
+    <article className={`rounded-xl border p-5 ${styles.card}`}>
+      <p className="text-sm font-medium text-slate-600">{label}</p>
+      <p className={`mt-2 text-3xl font-semibold ${styles.number}`}>{primary}</p>
+      <p className="mt-0.5 text-xs text-slate-500">{primarySub}</p>
+      {trend != null && (
+        <p className={`mt-2 text-xs font-semibold ${trend >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          {trend >= 0 ? `↑ +${trend}%` : `↓ ${Math.abs(trend)}%`} vs. sem. anterior
+        </p>
+      )}
+      <p className="mt-1 text-xs text-slate-400">{secondary}</p>
     </article>
   );
 }
