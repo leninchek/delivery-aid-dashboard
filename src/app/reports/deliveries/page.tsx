@@ -362,7 +362,7 @@ export default function DeliveriesReportPage() {
             onChange={(e) => setCurpSearch(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18))}
             onKeyDown={(e) => { if (e.key === "Enter" && curpSearch.length >= 10 && !isCurpSearching) void runCurpSearch(); }}
             placeholder="CURP (mínimo 10 caracteres)"
-            className="w-72 rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm outline-none focus:border-slate-900"
+            className="w-full sm:w-72 rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm outline-none focus:border-slate-900"
             maxLength={18}
           />
           <button

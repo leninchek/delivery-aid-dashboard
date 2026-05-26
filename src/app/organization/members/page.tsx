@@ -451,7 +451,7 @@ export default function OrgMembersPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.35fr_0.65fr]">
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

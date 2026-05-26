@@ -54,7 +54,7 @@ export default function AidTypesPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.85fr]">
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

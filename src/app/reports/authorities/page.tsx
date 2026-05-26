@@ -142,7 +142,7 @@ export default function AuthoritiesReportPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.3fr_0.7fr]">
 
         {/* ── Tabla ── */}
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">

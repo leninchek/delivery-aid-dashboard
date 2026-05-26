@@ -25,7 +25,7 @@ export function BulkImportSection({
 }: BulkImportSectionProps) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold">Carga masiva</h3>
           <p className="mt-0.5 text-sm text-slate-600">

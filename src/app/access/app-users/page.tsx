@@ -398,7 +398,7 @@ export default function AppUsersPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.4fr_0.6fr]">
         <UserList
           rows={filteredRows}
           levelFilter={levelFilter}

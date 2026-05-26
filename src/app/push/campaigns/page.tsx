@@ -384,7 +384,7 @@ export default function PushCampaignsPage() {
         </article>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.1fr_0.9fr]">
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
             <div>

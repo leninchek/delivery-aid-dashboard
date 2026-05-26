@@ -50,14 +50,14 @@ export function DateRangeFilter({
             type="date"
             value={customStart}
             onChange={(e) => onStart(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
+            className="w-full sm:w-auto rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
           />
           <span className="text-sm text-slate-400">—</span>
           <input
             type="date"
             value={customEnd}
             onChange={(e) => onEnd(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
+            className="w-full sm:w-auto rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
           />
         </>
       )}

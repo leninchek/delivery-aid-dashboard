@@ -72,7 +72,7 @@ export default function RoutesPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.2fr_0.8fr]">
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
