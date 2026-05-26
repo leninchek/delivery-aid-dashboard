@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormInput } from "@/components/form/FormInput";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { showToast } from "@/hooks/useToast";
+import { validateRequiredName } from "@/utils/validators";
 import type { RouteItem } from "@/types/shared";
 
 type RouteForm = { name: string; description: string };
@@ -33,7 +35,8 @@ export default function RoutesPage() {
       description: f.description.trim() || null,
     }),
     validate: (f, editingId, items) => {
-      if (!f.name.trim()) return "El nombre de la ruta es obligatorio.";
+      const nameErr = validateRequiredName(f.name, "El nombre de la ruta");
+      if (nameErr) return nameErr;
       const duplicate = items.some(
         (i) => i.id !== editingId && i.name.trim().toLowerCase() === f.name.trim().toLowerCase(),
       );
@@ -161,28 +164,22 @@ export default function RoutesPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Nombre</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Ruta Norte"
-                required
-              />
-            </label>
+            <FormInput
+              label="Nombre"
+              value={form.name}
+              onChange={(v) => setForm((c) => ({ ...c, name: v }))}
+              placeholder="Ruta Norte"
+              required
+            />
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Descripción (opcional)</span>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
-                rows={4}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Cobertura territorial o notas operativas"
-              />
-            </label>
+            <FormInput
+              label="Descripción (opcional)"
+              value={form.description}
+              onChange={(v) => setForm((c) => ({ ...c, description: v }))}
+              placeholder="Cobertura territorial o notas operativas"
+              multiline
+              rows={4}
+            />
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

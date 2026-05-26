@@ -42,6 +42,33 @@ export function validateBirthDate(
   return null;
 }
 
+export function validateRequiredName(value: string, label = "El nombre"): string | null {
+  return value.trim() ? null : `${label} es obligatorio.`;
+}
+
+type AuthorityForm = { name: string; phone: string; curp: string; birthDate: string };
+export function validateAuthority(form: AuthorityForm): Record<string, string> {
+  const errs: Record<string, string> = {};
+  const nameErr = validateRequiredName(form.name);
+  if (nameErr) errs.name = nameErr;
+  const phoneErr = validateMexicanPhone(form.phone);
+  if (phoneErr) errs.phone = phoneErr;
+  const curpErr = validateCurp(form.curp);
+  if (curpErr) errs.curp = curpErr;
+  const birthErr = validateBirthDate(form.birthDate);
+  if (birthErr) errs.birthDate = birthErr;
+  return errs;
+}
+
+type AppUserCreateForm = { phone: string; levelId: string };
+export function validateAppUserCreate(form: AppUserCreateForm): Record<string, string> {
+  const errs: Record<string, string> = {};
+  const phoneErr = validateMexicanPhone(form.phone);
+  if (phoneErr) errs.phone = phoneErr;
+  if (!form.levelId) errs.levelId = "El nivel es obligatorio.";
+  return errs;
+}
+
 const MEMORABLE_WORDS = [
   "AGUA", "LUNA", "NUBE", "ROCA", "FLOR", "MESA", "LAGO", "PINO",
   "TREN", "VELA", "BOCA", "TORO", "PUMA", "ALBA", "DUNA", "CIMA",

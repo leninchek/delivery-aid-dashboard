@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormInput } from "@/components/form/FormInput";
+import { FormSelect } from "@/components/form/FormSelect";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
@@ -216,85 +218,65 @@ export default function CitiesPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Nombre</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Merida"
-                required
-              />
-            </label>
+            <FormInput
+              label="Nombre"
+              value={form.name}
+              onChange={(v) => setForm((c) => ({ ...c, name: v }))}
+              placeholder="Merida"
+              required
+            />
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Estado</span>
-              <input
-                type="text"
-                value={form.state}
-                onChange={(e) => setForm((c) => ({ ...c, state: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Yucatan"
-                required
-              />
-            </label>
+            <FormInput
+              label="Estado"
+              value={form.state}
+              onChange={(v) => setForm((c) => ({ ...c, state: v }))}
+              placeholder="Yucatan"
+              required
+            />
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Delegado (opcional)</span>
-              <select
-                value={form.delegateId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, delegateId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {delegates.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Delegado (opcional)"
+              value={form.delegateId || ""}
+              onChange={(v) => setForm((c) => ({ ...c, delegateId: toNullableId(v) }))}
+            >
+              <option value="">Sin asignar</option>
+              {delegates.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </FormSelect>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Sub Delegado (opcional)</span>
-              <select
-                value={form.subDelegateId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, subDelegateId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {subDelegates.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Sub Delegado (opcional)"
+              value={form.subDelegateId || ""}
+              onChange={(v) => setForm((c) => ({ ...c, subDelegateId: toNullableId(v) }))}
+            >
+              <option value="">Sin asignar</option>
+              {subDelegates.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </FormSelect>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Comisario Ejidal (opcional)</span>
-              <select
-                value={form.ejidalCommissionerId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, ejidalCommissionerId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {ejidalCommissioners.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Comisario Ejidal (opcional)"
+              value={form.ejidalCommissionerId || ""}
+              onChange={(v) => setForm((c) => ({ ...c, ejidalCommissionerId: toNullableId(v) }))}
+            >
+              <option value="">Sin asignar</option>
+              {ejidalCommissioners.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </FormSelect>
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Presidente (opcional)</span>
-              <select
-                value={form.mayorId || ""}
-                onChange={(e) => setForm((c) => ({ ...c, mayorId: toNullableId(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {mayors.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Presidente (opcional)"
+              value={form.mayorId || ""}
+              onChange={(v) => setForm((c) => ({ ...c, mayorId: toNullableId(v) }))}
+            >
+              <option value="">Sin asignar</option>
+              {mayors.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </FormSelect>
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

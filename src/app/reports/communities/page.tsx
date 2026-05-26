@@ -1,18 +1,19 @@
 "use client";
 
 import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
+import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
   exportToCsv,
   fmtDate,
   parseTimestamp,
-  sortRows,
   type DatePreset,
 } from "@/lib/report-utils";
 
@@ -27,9 +28,6 @@ type Row = {
   lastDelivery: Date | null;
 };
 
-type SortKey = keyof Row;
-
-
 export default function CommunitiesReportPage() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
@@ -42,18 +40,11 @@ export default function CommunitiesReportPage() {
   const [cityId,      setCityId]      = useState("");
 
   const [rows,      setRows]      = useState<Row[]>([]);
-  const [sortKey,   setSortKey]   = useState<SortKey>("totalDeliveries");
-  const [sortDir,   setSortDir]   = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun,    setHasRun]    = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  function toggleSort(field: SortKey) {
-    if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(field); setSortDir("desc"); }
-  }
-
-  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
+  const { sortKey, sortDir, toggleSort, sortedRows } = useReportSort<Row>(rows, "totalDeliveries");
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -161,85 +152,64 @@ export default function CommunitiesReportPage() {
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Cobertura por Comunidad</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Actividad de entregas por comunidad y municipio en el periodo seleccionado.
-        </p>
-      </header>
-
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <DateRangeFilter
-          preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
-        />
-        <div className="flex flex-wrap gap-3">
-          <select value={cityId} onChange={(e) => setCityId(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todos los municipios</option>
-            {municipios.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={isLoading}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : "Generar reporte"}
-          </button>
-          {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Exportar CSV
-            </button>
-          )}
-        </div>
-      </div>
-
-      {hasRun && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-700">
-              {sortedRows.length} {sortedRows.length === 1 ? "comunidad" : "comunidades"}
-            </p>
+    <ReportShell
+      title="Cobertura por Comunidad"
+      description="Actividad de entregas por comunidad y municipio en el periodo seleccionado."
+      error={error}
+      isLoading={isLoading}
+      hasRun={hasRun}
+      rowCount={sortedRows.length}
+      rowLabel={["comunidad", "comunidades"]}
+      onGenerate={() => void runReport()}
+      onExport={doExport}
+      filters={
+        <>
+          <DateRangeFilter
+            preset={preset} customStart={customStart} customEnd={customEnd}
+            onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
+          />
+          <div className="flex flex-wrap gap-3">
+            <select value={cityId} onChange={(e) => setCityId(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+              <option value="">Todos los municipios</option>
+              {municipios.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
           </div>
-          {isLoading ? (
-            <TableSkeleton cols={5} />
-          ) : sortedRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Sin comunidades con actividad en el periodo. Intenta ampliar el rango de fechas.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr>
-                    <SortTh label="Comunidad"      field="communityName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Municipio"      field="cityName"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Entregas"       field="totalDeliveries" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Activistas"     field="activeActivists" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Últ. entrega"   field="lastDelivery"    sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedRows.map((r) => (
-                    <tr key={r.communityId} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-900">{r.communityName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.cityName}</td>
-                      <td className="px-5 py-3 text-right tabular-nums font-semibold text-slate-900">{r.totalDeliveries}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-slate-600">{r.activeActivists}</td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastDelivery)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        </>
+      }
+    >
+      {isLoading ? (
+        <TableSkeleton cols={5} />
+      ) : sortedRows.length === 0 ? (
+        <p className="py-12 text-center text-sm text-slate-400">
+          Sin comunidades con actividad en el periodo. Intenta ampliar el rango de fechas.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100">
+              <tr>
+                <SortTh label="Comunidad"    field="communityName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Municipio"    field="cityName"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Entregas"     field="totalDeliveries" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Activistas"   field="activeActivists" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Últ. entrega" field="lastDelivery"    sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedRows.map((r) => (
+                <tr key={r.communityId} className="hover:bg-slate-50">
+                  <td className="px-5 py-3 font-medium text-slate-900">{r.communityName}</td>
+                  <td className="px-5 py-3 text-slate-600">{r.cityName}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-semibold text-slate-900">{r.totalDeliveries}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-slate-600">{r.activeActivists}</td>
+                  <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastDelivery)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </section>
+    </ReportShell>
   );
 }

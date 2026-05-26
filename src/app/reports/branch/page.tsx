@@ -6,13 +6,13 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
+import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
   exportToCsv,
   fmtDate,
   parseTimestamp,
-  sortRows,
   type DatePreset,
 } from "@/lib/report-utils";
 
@@ -39,7 +39,6 @@ type Row = {
   lastActivity: Date | null;
 };
 
-type SortKey = keyof Row;
 type BranchMode = "all" | "level" | "member";
 
 const MODE_LABELS: { value: BranchMode; label: string }[] = [
@@ -69,18 +68,11 @@ export default function BranchReportPage() {
   const [includePromoted, setIncludePromoted] = useState(false);
 
   const [rows,      setRows]      = useState<Row[]>([]);
-  const [sortKey,   setSortKey]   = useState<SortKey>("levelRank");
-  const [sortDir,   setSortDir]   = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun,    setHasRun]    = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  function toggleSort(field: SortKey) {
-    if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(field); setSortDir("asc"); }
-  }
-
-  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
+  const { sortKey, sortDir, toggleSort, sortedRows } = useReportSort<Row>(rows, "levelRank", "asc");
 
   useEffect(() => {
     if (!isConfigured) return;

@@ -2,10 +2,13 @@
 
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormInput } from "@/components/form/FormInput";
+import { FormSelect } from "@/components/form/FormSelect";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { aidUnitOptions, unitDisplayMap } from "@/lib/utils";
 import { showToast } from "@/hooks/useToast";
+import { validateRequiredName } from "@/utils/validators";
 import type { AidType, AidUnit } from "@/types/shared";
 
 type AidTypeForm = Pick<AidType, "name" | "unit" | "active">;
@@ -31,7 +34,7 @@ export default function AidTypesPage() {
     }),
     mapItemToForm: (item) => ({ name: item.name, unit: item.unit, active: item.active }),
     mapFormToFirestore: (f) => ({ name: f.name.trim(), unit: f.unit, active: f.active }),
-    validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
+    validate: (f) => validateRequiredName(f.name),
     onSuccess: (action) => showToast(action === "delete" ? "Eliminado correctamente." : "Guardado correctamente."),
   });
 
@@ -144,30 +147,23 @@ export default function AidTypesPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Nombre</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-                placeholder="Despensa"
-                required
-              />
-            </label>
+            <FormInput
+              label="Nombre"
+              value={form.name}
+              onChange={(v) => setForm((c) => ({ ...c, name: v }))}
+              placeholder="Despensa"
+              required
+            />
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Unidad</span>
-              <select
-                value={form.unit}
-                onChange={(e) => setForm((c) => ({ ...c, unit: e.target.value as AidUnit }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                {aidUnitOptions.map((unit) => (
-                  <option key={unit} value={unit}>{unitDisplayMap[unit]}</option>
-                ))}
-              </select>
-            </label>
+            <FormSelect
+              label="Unidad"
+              value={form.unit}
+              onChange={(v) => setForm((c) => ({ ...c, unit: v as AidUnit }))}
+            >
+              {aidUnitOptions.map((unit) => (
+                <option key={unit} value={unit}>{unitDisplayMap[unit]}</option>
+              ))}
+            </FormSelect>
 
             <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
               <input

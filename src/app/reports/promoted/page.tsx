@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { ReportImageCell } from "@/components/reports/report-image-cell";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
+import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
@@ -14,7 +16,6 @@ import {
   fmtDate,
   fmtDateTime,
   parseTimestamp,
-  sortRows,
   type DatePreset,
 } from "@/lib/report-utils";
 
@@ -48,8 +49,6 @@ type Row = {
   pendingCredentialBack: boolean;
 };
 
-type SortKey = keyof Row;
-
 const CREDENTIAL_LABELS: Record<CredentialStatus, string> = {
   complete: "Con credencial",
   pending: "Pendiente",
@@ -82,8 +81,6 @@ export default function PromotedReportPage() {
   const [levelOptions, setLevelOptions] = useState<LevelOption[]>([]);
   const [communityOptions, setCommunityOptions] = useState<CommunityOption[]>([]);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
   const [isStale, setIsStale] = useState(false);
@@ -136,14 +133,6 @@ export default function PromotedReportPage() {
       .finally(() => setIsLoadingCatalogs(false));
   }, [isConfigured]);
 
-  function toggleSort(field: SortKey) {
-    if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(field);
-      setSortDir(field === "createdAt" ? "desc" : "asc");
-    }
-  }
-
   const filteredRows = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return rows.filter((r) => {
@@ -163,10 +152,7 @@ export default function PromotedReportPage() {
     });
   }, [rows, searchText, activistId, levelId, communityId, activeFilter, credentialFilter, ineFilter]);
 
-  const sortedRows = useMemo(
-    () => sortRows(filteredRows, sortKey, sortDir),
-    [filteredRows, sortKey, sortDir],
-  );
+  const { sortKey, sortDir, toggleSort, sortedRows } = useReportSort<Row>(filteredRows, "createdAt");
 
   async function runReport() {
     const db = getFirestoreDb();
@@ -251,156 +237,139 @@ export default function PromotedReportPage() {
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Reporte de Promovidos</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Listado de personas promovidas registradas por periodo, activista, nivel y comunidad.
-        </p>
-      </header>
-
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <DateRangeFilter
-          preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={(value) => { setPreset(value); markStale(); }}
-          onStart={(value) => { setCustomStart(value); markStale(); }}
-          onEnd={(value) => { setCustomEnd(value); markStale(); }}
-        />
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <input
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Buscar por nombre, teléfono o CURP"
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400"
-          />
-          <select value={activistId} onChange={(e) => setActivistId(e.target.value)}
-            disabled={isLoadingCatalogs}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
-            <option value="">{isLoadingCatalogs ? "Cargando activistas..." : "Todos los activistas"}</option>
-            {activistOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <select value={levelId} onChange={(e) => setLevelId(e.target.value)}
-            disabled={isLoadingCatalogs}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
-            <option value="">{isLoadingCatalogs ? "Cargando niveles..." : "Todos los niveles"}</option>
-            {levelOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={communityId} onChange={(e) => setCommunityId(e.target.value)}
-            disabled={isLoadingCatalogs}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
-            <option value="">{isLoadingCatalogs ? "Cargando comunidades..." : "Todas las comunidades"}</option>
-            {communityOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="all">Activos e inactivos</option>
-            <option value="active">Solo activos</option>
-            <option value="inactive">Solo inactivos</option>
-          </select>
-          <select value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value as "" | CredentialStatus)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todas las credenciales</option>
-            <option value="complete">Con credencial</option>
-            <option value="pending">Pendiente</option>
-            <option value="none">Sin credencial</option>
-          </select>
-          <select value={ineFilter} onChange={(e) => setIneFilter(e.target.value as IneFilter)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="all">Todas las INE</option>
-            <option value="complete">INE completa</option>
-            <option value="incomplete">INE incompleta</option>
-            <option value="pending">INE pendiente</option>
-            <option value="none">Sin INE</option>
-          </select>
-        </div>
-        {isStale && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            El periodo del reporte cambió. Vuelve a generar para actualizar los resultados.
-          </p>
-        )}
-        <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={isLoading || isLoadingCatalogs}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : isLoadingCatalogs ? "Cargando catálogos..." : "Generar reporte"}
-          </button>
-          {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport} disabled={isStale}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-              Exportar CSV
-            </button>
-          )}
-        </div>
-      </div>
-
-      {hasRun && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-700">
-              {sortedRows.length} {sortedRows.length === 1 ? "promovido" : "promovidos"}
-            </p>
-          </div>
-          {isLoading ? (
-            <TableSkeleton cols={9} />
-          ) : sortedRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Sin promovidos que coincidan con el periodo o los filtros activos.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr>
-                    <SortTh label="Nombre" field="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Teléfono" field="phone" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="CURP" field="curp" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Nacimiento" field="birthDate" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Activista" field="activistName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Nivel" field="levelName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Comunidad" field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Estado" field="activeLabel" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{r.phone || "—"}</td>
-                      <td className="px-5 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{r.curp || "—"}</td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.birthDate)}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.activistName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.communityName}</td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          r.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                        }`}>
-                          {r.activeLabel}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <button type="button" onClick={() => setSelectedRow(r)}
-                          className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                          Ver
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+    <>
+      <ReportShell
+        title="Reporte de Promovidos"
+        description="Listado de personas promovidas registradas por periodo, activista, nivel y comunidad."
+        error={error}
+        isLoading={isLoading}
+        generateLabel={isLoadingCatalogs ? "Cargando catálogos..." : undefined}
+        hasRun={hasRun}
+        rowCount={sortedRows.length}
+        rowLabel={["promovido", "promovidos"]}
+        onGenerate={() => void runReport()}
+        onExport={doExport}
+        exportDisabled={isStale}
+        filters={
+          <>
+            <DateRangeFilter
+              preset={preset} customStart={customStart} customEnd={customEnd}
+              onPreset={(value) => { setPreset(value); markStale(); }}
+              onStart={(value) => { setCustomStart(value); markStale(); }}
+              onEnd={(value) => { setCustomEnd(value); markStale(); }}
+            />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <input
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Buscar por nombre, teléfono o CURP"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400"
+              />
+              <select value={activistId} onChange={(e) => setActivistId(e.target.value)}
+                disabled={isLoadingCatalogs}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
+                <option value="">{isLoadingCatalogs ? "Cargando activistas..." : "Todos los activistas"}</option>
+                {activistOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <select value={levelId} onChange={(e) => setLevelId(e.target.value)}
+                disabled={isLoadingCatalogs}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
+                <option value="">{isLoadingCatalogs ? "Cargando niveles..." : "Todos los niveles"}</option>
+                {levelOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <select value={communityId} onChange={(e) => setCommunityId(e.target.value)}
+                disabled={isLoadingCatalogs}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-50">
+                <option value="">{isLoadingCatalogs ? "Cargando comunidades..." : "Todas las comunidades"}</option>
+                {communityOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="all">Activos e inactivos</option>
+                <option value="active">Solo activos</option>
+                <option value="inactive">Solo inactivos</option>
+              </select>
+              <select value={credentialFilter} onChange={(e) => setCredentialFilter(e.target.value as "" | CredentialStatus)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="">Todas las credenciales</option>
+                <option value="complete">Con credencial</option>
+                <option value="pending">Pendiente</option>
+                <option value="none">Sin credencial</option>
+              </select>
+              <select value={ineFilter} onChange={(e) => setIneFilter(e.target.value as IneFilter)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="all">Todas las INE</option>
+                <option value="complete">INE completa</option>
+                <option value="incomplete">INE incompleta</option>
+                <option value="pending">INE pendiente</option>
+                <option value="none">Sin INE</option>
+              </select>
             </div>
-          )}
-        </div>
-      )}
+            {isStale && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                El periodo del reporte cambió. Vuelve a generar para actualizar los resultados.
+              </p>
+            )}
+          </>
+        }
+      >
+        {isLoading ? (
+          <TableSkeleton cols={9} />
+        ) : sortedRows.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-400">
+            Sin promovidos que coincidan con el periodo o los filtros activos.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100">
+                <tr>
+                  <SortTh label="Nombre"     field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Teléfono"   field="phone"         sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="CURP"       field="curp"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Nacimiento" field="birthDate"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Activista"  field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Nivel"      field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Comunidad"  field="communityName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Estado"     field="activeLabel"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedRows.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
+                    <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{r.phone || "—"}</td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">{r.curp || "—"}</td>
+                    <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.birthDate)}</td>
+                    <td className="px-5 py-3 text-slate-600">{r.activistName}</td>
+                    <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
+                    <td className="px-5 py-3 text-slate-600">{r.communityName}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        r.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {r.activeLabel}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <button type="button" onClick={() => setSelectedRow(r)}
+                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                        Ver
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </ReportShell>
       {selectedRow && (
         <PromotedDetailModal row={selectedRow} onClose={() => setSelectedRow(null)} />
       )}
-    </section>
+    </>
   );
 }
 

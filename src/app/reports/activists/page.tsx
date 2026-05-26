@@ -1,18 +1,19 @@
 "use client";
 
 import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
+import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
   exportToCsv,
   fmtDate,
   parseTimestamp,
-  sortRows,
   type DatePreset,
 } from "@/lib/report-utils";
 import type { OrgLevel } from "@/types/shared";
@@ -29,9 +30,6 @@ type Row = {
   active: boolean;
 };
 
-type SortKey = keyof Row;
-
-
 export default function ActivistsReportPage() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
@@ -45,18 +43,11 @@ export default function ActivistsReportPage() {
   const [activeOnly,  setActiveOnly]  = useState(false);
 
   const [rows,      setRows]      = useState<Row[]>([]);
-  const [sortKey,   setSortKey]   = useState<SortKey>("directCount");
-  const [sortDir,   setSortDir]   = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun,    setHasRun]    = useState(false);
   const [error,     setError]     = useState<string | null>(null);
 
-  function toggleSort(field: SortKey) {
-    if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(field); setSortDir("desc"); }
-  }
-
-  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
+  const { sortKey, sortDir, toggleSort, sortedRows } = useReportSort<Row>(rows, "directCount");
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -174,98 +165,77 @@ export default function ActivistsReportPage() {
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Actividad por Activista</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Resumen operativo de cada miembro organizacional en el periodo seleccionado.
-        </p>
-      </header>
-
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <DateRangeFilter
-          preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <select value={levelId} onChange={(e) => setLevelId(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todos los niveles</option>
-            {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)}
-              className="rounded border-slate-300" />
-            Solo activos
-          </label>
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={isLoading}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : "Generar reporte"}
-          </button>
-          {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Exportar CSV
-            </button>
-          )}
-        </div>
-      </div>
-
-      {hasRun && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-700">
-              {sortedRows.length} {sortedRows.length === 1 ? "miembro" : "miembros"}
-            </p>
+    <ReportShell
+      title="Actividad por Activista"
+      description="Resumen operativo de cada miembro organizacional en el periodo seleccionado."
+      error={error}
+      isLoading={isLoading}
+      hasRun={hasRun}
+      rowCount={sortedRows.length}
+      rowLabel={["miembro", "miembros"]}
+      onGenerate={() => void runReport()}
+      onExport={doExport}
+      filters={
+        <>
+          <DateRangeFilter
+            preset={preset} customStart={customStart} customEnd={customEnd}
+            onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <select value={levelId} onChange={(e) => setLevelId(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+              <option value="">Todos los niveles</option>
+              {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)}
+                className="rounded border-slate-300" />
+              Solo activos
+            </label>
           </div>
-          {isLoading ? (
-            <TableSkeleton cols={7} />
-          ) : sortedRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Sin resultados. Intenta ampliar el rango de fechas o cambiar los filtros activos.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr>
-                    <SortTh label="Nombre"          field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Nivel"           field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Con benef."      field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Sin benef."      field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Promovidos"      field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Últ. actividad"  field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Estado"          field="active"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-blue-700">{r.directCount}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-violet-700">{r.indirectCount}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-emerald-700">{r.promotedCount}</td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastActivity)}</td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          r.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                        }`}>{r.active ? "Activo" : "Inactivo"}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        </>
+      }
+    >
+      {isLoading ? (
+        <TableSkeleton cols={7} />
+      ) : sortedRows.length === 0 ? (
+        <p className="py-12 text-center text-sm text-slate-400">
+          Sin resultados. Intenta ampliar el rango de fechas o cambiar los filtros activos.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100">
+              <tr>
+                <SortTh label="Nombre"         field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Nivel"          field="levelName"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Con benef."     field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Sin benef."     field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Promovidos"     field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Últ. actividad" field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Estado"         field="active"        sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedRows.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-50">
+                  <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
+                  <td className="px-5 py-3 text-slate-600">{r.levelName}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-blue-700">{r.directCount}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-violet-700">{r.indirectCount}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-emerald-700">{r.promotedCount}</td>
+                  <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastActivity)}</td>
+                  <td className="px-5 py-3">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      r.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    }`}>{r.active ? "Activo" : "Inactivo"}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </section>
+    </ReportShell>
   );
 }

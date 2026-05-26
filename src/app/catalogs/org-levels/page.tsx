@@ -1,9 +1,11 @@
 "use client";
 
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormInput } from "@/components/form/FormInput";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { showToast } from "@/hooks/useToast";
+import { validateRequiredName } from "@/utils/validators";
 import type { OrgLevel } from "@/types/shared";
 
 type OrgLevelForm = {
@@ -71,7 +73,7 @@ export default function OrgLevelsPage() {
       capabilities: f.capabilities,
       active: f.active,
     }),
-    validate: (f) => (!f.name.trim() ? "El nombre es obligatorio." : null),
+    validate: (f) => validateRequiredName(f.name),
     onSuccess: (action) => showToast(action === "delete" ? "Nivel eliminado." : "Guardado correctamente."),
   });
 
@@ -225,29 +227,22 @@ export default function OrgLevelsPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Nombre</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-900 outline-none"
-                placeholder="Seccional"
-                required
-              />
-            </label>
+            <FormInput
+              label="Nombre"
+              value={form.name}
+              onChange={(v) => setForm((c) => ({ ...c, name: v }))}
+              placeholder="Seccional"
+              required
+            />
 
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Rango</span>
-              <input
-                type="number"
-                min={1}
-                value={form.rank}
-                onChange={(e) => setForm((c) => ({ ...c, rank: Number(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-900 outline-none"
-                required
-              />
-            </label>
+            <FormInput
+              label="Rango"
+              type="number"
+              value={String(form.rank)}
+              onChange={(v) => setForm((c) => ({ ...c, rank: Number(v) }))}
+              min={1}
+              required
+            />
 
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium text-slate-700">Capacidades</legend>

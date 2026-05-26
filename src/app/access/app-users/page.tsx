@@ -7,10 +7,14 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { showToast } from "@/hooks/useToast";
-import { validateMexicanPhone } from "@/utils/validators";
-import { parseCsvImport, downloadCsvTemplate } from "@/utils/csv-import";
+import { validateAppUserCreate } from "@/utils/validators";
+import { parseCsvImport } from "@/utils/csv-import";
+import type { CsvParseResult } from "@/utils/csv-import";
 import type { CreateUserPayload } from "@/types/app-user";
-import type { CsvParseResult, CsvRowError } from "@/utils/csv-import";
+import { UserList } from "./UserList";
+import { CreateUserForm } from "./CreateUserForm";
+import { BulkImportSection } from "./BulkImportSection";
+import type { ImportResult } from "./BulkImportSection";
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -71,14 +75,11 @@ export default function AppUsersPage() {
   const [resettingUid, setResettingUid] = useState<string | null>(null);
   const [togglingUid,  setTogglingUid]  = useState<string | null>(null);
 
-  // ── Carga masiva ──────────────────────────────────────────────────────────
-  const csvInputRef                          = useRef<HTMLInputElement>(null);
-  const [csvPreview,    setCsvPreview]       = useState<CsvParseResult | null>(null);
-  const [csvFileName,   setCsvFileName]      = useState("");
-  const [isImporting,   setIsImporting]      = useState(false);
-  const [importResult,  setImportResult]     = useState<{
-    total: number; succeeded: number; failed: number; errors: CsvRowError[];
-  } | null>(null);
+  const csvInputRef                        = useRef<HTMLInputElement>(null);
+  const [csvPreview,   setCsvPreview]      = useState<CsvParseResult | null>(null);
+  const [csvFileName,  setCsvFileName]     = useState("");
+  const [isImporting,  setIsImporting]     = useState(false);
+  const [importResult, setImportResult]    = useState<ImportResult | null>(null);
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -141,12 +142,13 @@ export default function AppUsersPage() {
 
   const memberById = useMemo(() => new Map(orgMembers.map((m) => [m.id, m])), [orgMembers]);
 
-  const rows = useMemo(() => {
-    return systemUsers.map((u) => ({
+  const rows = useMemo(() =>
+    systemUsers.map((u) => ({
       ...u,
       levelId: memberById.get(u.orgMemberId)?.levelId ?? "",
-    }));
-  }, [systemUsers, memberById]);
+    })),
+    [systemUsers, memberById]
+  );
 
   const filteredRows = useMemo(() =>
     levelFilter ? rows.filter((r) => r.levelId === levelFilter) : rows,
@@ -179,20 +181,15 @@ export default function AppUsersPage() {
   }
 
   // ── Field helpers ─────────────────────────────────────────────────────────
-  function setField<K extends keyof CreateForm>(key: K, value: string) {
+  function setField(key: keyof CreateForm, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     setFieldErrors((e) => { const n = { ...e }; delete n[key]; return n; });
   }
 
   // ── Create user ───────────────────────────────────────────────────────────
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const errs: Partial<Record<keyof CreateForm, string>> = {};
-
-    const phoneErr = validateMexicanPhone(form.phone);
-    if (phoneErr) errs.phone = phoneErr;
-    if (!form.levelId) errs.levelId = "El nivel es obligatorio.";
-
+    const errs = validateAppUserCreate(form);
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
     setFieldErrors({});
 
@@ -302,7 +299,7 @@ export default function AppUsersPage() {
       const content = ev.target?.result as string;
       setCsvPreview(parseCsvImport(content));
     };
-    reader.readAsText(file, 'utf-8');
+    reader.readAsText(file, "utf-8");
   }
 
   // ── Run import ────────────────────────────────────────────────────────────
@@ -315,7 +312,6 @@ export default function AppUsersPage() {
       return;
     }
 
-    // Re-read the file to send raw CSV to the Cloud Function
     const file = csvInputRef.current?.files?.[0];
     if (!file) { showToast("Selecciona el archivo CSV de nuevo."); return; }
 
@@ -333,10 +329,7 @@ export default function AppUsersPage() {
         body:    JSON.stringify({ csvContent: content }),
       });
 
-      const data = (await res.json()) as {
-        total: number; succeeded: number; failed: number; errors: CsvRowError[];
-        error?: string;
-      };
+      const data = (await res.json()) as ImportResult & { error?: string };
 
       if (!res.ok) throw new Error(data.error ?? "Error en la importación.");
 
@@ -363,7 +356,6 @@ export default function AppUsersPage() {
         </p>
       </header>
 
-      {/* ── Banner de contraseña temporal ─────────────────────────────────── */}
       {banner && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex items-start justify-between gap-4">
@@ -407,404 +399,42 @@ export default function AppUsersPage() {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
-
-        {/* ── Tabla ────────────────────────────────────────────────────────── */}
-        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold">Usuarios</h3>
-              <p className="text-sm text-slate-600">Todos los niveles con acceso a la App.</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {filteredRows.length} usuarios
-            </span>
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-slate-700">Filtrar por nivel</label>
-            <select
-              value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900 sm:w-64"
-            >
-              <option value="">Todos los niveles</option>
-              {appLevels.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Teléfono</th>
-                  <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium">Nivel</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Alta</th>
-                  <th className="px-4 py-3 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredRows.map((user) => {
-                  const level = levelById.get(user.levelId);
-                  return (
-                    <tr key={user.uid} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono text-slate-700">{user.phone || "-"}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {user.name || (
-                          <span className="text-slate-400 italic">Sin completar</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{level?.name ?? "-"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          user.active
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
-                        }`}>
-                          {user.active ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {user.onboardingComplete ? (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                            Completo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                            Pendiente
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleResetPassword(user.uid, user.phone)}
-                            disabled={resettingUid === user.uid}
-                            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {resettingUid === user.uid ? "Restableciendo..." : "Restablecer contraseña"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleToggle(user.uid, !user.active)}
-                            disabled={togglingUid === user.uid}
-                            className={`rounded-md border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
-                              user.active
-                                ? "border-rose-300 text-rose-700 hover:bg-rose-50"
-                                : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                            }`}
-                          >
-                            {togglingUid === user.uid
-                              ? "..."
-                              : user.active ? "Desactivar" : "Activar"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filteredRows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                      {levelFilter
-                        ? "No hay usuarios en este nivel."
-                        : "Aún no hay usuarios de App. Crea el primero."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        {/* ── Formulario de alta ────────────────────────────────────────────── */}
-        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
-          <h3 className="text-lg font-semibold">Nuevo usuario</h3>
-          <p className="mt-0.5 text-sm text-slate-600">
-            El activista completará su perfil en el primer inicio de sesión.
-          </p>
-
-          <form className="mt-6 space-y-4" onSubmit={(e) => void handleCreate(e)}>
-
-            {/* Teléfono */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">Teléfono</label>
-              <input
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                value={form.phone}
-                onChange={(e) => setField("phone", e.target.value.replace(/\D/g, ""))}
-                placeholder="5512345678"
-                className={`w-full rounded-lg border px-3 py-2 font-mono outline-none transition focus:border-slate-900 ${
-                  fieldErrors.phone ? "border-rose-400 bg-rose-50" : "border-slate-300"
-                }`}
-              />
-              {fieldErrors.phone && (
-                <p className="text-xs text-rose-600">{fieldErrors.phone}</p>
-              )}
-              <p className="text-xs text-slate-400">
-                La contraseña inicial serán los últimos 6 dígitos.
-              </p>
-            </div>
-
-            {/* Nivel organizacional */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">Nivel organizacional</label>
-              <select
-                value={form.levelId}
-                onChange={(e) => setField("levelId", e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${
-                  fieldErrors.levelId ? "border-rose-400 bg-rose-50" : "border-slate-300"
-                }`}
-              >
-                <option value="">Selecciona un nivel</option>
-                {appLevels.map((l) => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
-              </select>
-              {fieldErrors.levelId && (
-                <p className="text-xs text-rose-600">{fieldErrors.levelId}</p>
-              )}
-            </div>
-
-            {/* Superior jerárquico */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Superior directo <span className="font-normal text-slate-400">(opcional)</span>
-              </label>
-              <select
-                value={form.parentId}
-                onChange={(e) => setField("parentId", e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {sortedOrgMembers.map((m) => (
-                  <option key={m.id} value={m.id}>{memberLabel(m)}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ciudad */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Ciudad <span className="font-normal text-slate-400">(opcional)</span>
-              </label>
-              <select
-                value={form.cityId}
-                onChange={(e) => {
-                  setField("cityId", e.target.value);
-                  setField("communityId", "");
-                }}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Comunidad */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Comunidad <span className="font-normal text-slate-400">(opcional)</span>
-              </label>
-              <select
-                value={form.communityId}
-                onChange={(e) => setField("communityId", e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {filteredCommunities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ruta */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Ruta <span className="font-normal text-slate-400">(opcional)</span>
-              </label>
-              <select
-                value={form.routeId}
-                onChange={(e) => setField("routeId", e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                <option value="">Sin asignar</option>
-                {routes.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSaving ? "Creando usuario..." : "Crear usuario"}
-            </button>
-          </form>
-        </article>
-
+        <UserList
+          rows={filteredRows}
+          levelFilter={levelFilter}
+          setLevelFilter={setLevelFilter}
+          appLevels={appLevels}
+          levelById={levelById}
+          resettingUid={resettingUid}
+          togglingUid={togglingUid}
+          onResetPassword={handleResetPassword}
+          onToggle={handleToggle}
+        />
+        <CreateUserForm
+          form={form}
+          fieldErrors={fieldErrors}
+          isSaving={isSaving}
+          appLevels={appLevels}
+          sortedOrgMembers={sortedOrgMembers}
+          cities={cities}
+          filteredCommunities={filteredCommunities}
+          routes={routes}
+          memberLabel={memberLabel}
+          setField={setField}
+          onSubmit={(e) => void handleCreate(e)}
+        />
       </div>
 
-      {/* ── Carga masiva ──────────────────────────────────────────────────── */}
-      <article className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold">Carga masiva</h3>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Importa hasta 500 usuarios desde un archivo CSV. La contraseña inicial son los últimos 6 dígitos del teléfono.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={downloadCsvTemplate}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Descargar plantilla
-          </button>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          {/* File picker */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700">
-              Archivo CSV
-              <input
-                ref={csvInputRef}
-                type="file"
-                accept=".csv,text/csv"
-                onChange={handleCsvFile}
-                disabled={isImporting}
-                className="mt-2 block w-full cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-medium hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </label>
-            {csvFileName && (
-              <p className="mt-1 text-xs text-slate-400">Archivo: {csvFileName}</p>
-            )}
-          </div>
-
-          {/* Preview */}
-          {csvPreview && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <div className="flex flex-wrap gap-4 text-sm">
-                <span>
-                  <span className="font-semibold text-slate-800">{csvPreview.totalRows}</span>
-                  <span className="ml-1 text-slate-500">filas detectadas</span>
-                </span>
-                <span>
-                  <span className="font-semibold text-emerald-700">{csvPreview.valid.length}</span>
-                  <span className="ml-1 text-slate-500">válidas</span>
-                </span>
-                {csvPreview.errors.length > 0 && (
-                  <span>
-                    <span className="font-semibold text-rose-600">{csvPreview.errors.length}</span>
-                    <span className="ml-1 text-slate-500">con errores de formato</span>
-                  </span>
-                )}
-              </div>
-
-              {csvPreview.errors.length > 0 && (
-                <div className="overflow-x-auto rounded border border-rose-200">
-                  <table className="min-w-full divide-y divide-rose-100 text-xs">
-                    <thead className="bg-rose-50 text-rose-700">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Fila</th>
-                        <th className="px-3 py-2 text-left font-medium">Teléfono</th>
-                        <th className="px-3 py-2 text-left font-medium">Error</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-rose-100 bg-white">
-                      {csvPreview.errors.map((err) => (
-                        <tr key={`${err.row}-${err.phone}`}>
-                          <td className="px-3 py-1.5 tabular-nums text-slate-600">{err.row}</td>
-                          <td className="px-3 py-1.5 font-mono text-slate-700">{err.phone || "-"}</td>
-                          <td className="px-3 py-1.5 text-rose-700">{err.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => void handleImport()}
-                disabled={isImporting || csvPreview.valid.length === 0}
-                className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {isImporting
-                  ? "Importando..."
-                  : `Importar ${csvPreview.valid.length} usuario${csvPreview.valid.length !== 1 ? "s" : ""}`}
-              </button>
-            </div>
-          )}
-
-          {/* Import result */}
-          {importResult && (
-            <div className={`rounded-xl border p-5 ${
-              importResult.failed === 0
-                ? "border-emerald-200 bg-emerald-50"
-                : importResult.succeeded === 0
-                  ? "border-rose-200 bg-rose-50"
-                  : "border-amber-200 bg-amber-50"
-            }`}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Importación completada —{" "}
-                    {importResult.succeeded} creados, {importResult.failed} fallidos de {importResult.total} filas.
-                  </p>
-                  {importResult.succeeded > 0 && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Los usuarios podrán iniciar sesión con su teléfono y los últimos 6 dígitos como contraseña temporal.
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setImportResult(null)}
-                  className="shrink-0 text-slate-400 hover:text-slate-700"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {importResult.errors.length > 0 && (
-                <div className="mt-4 overflow-x-auto rounded border border-rose-200">
-                  <table className="min-w-full divide-y divide-rose-100 text-xs">
-                    <thead className="bg-rose-50 text-rose-700">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Fila</th>
-                        <th className="px-3 py-2 text-left font-medium">Teléfono</th>
-                        <th className="px-3 py-2 text-left font-medium">Razón</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-rose-100 bg-white">
-                      {importResult.errors.map((err) => (
-                        <tr key={`${err.row}-${err.phone}`}>
-                          <td className="px-3 py-1.5 tabular-nums text-slate-600">{err.row}</td>
-                          <td className="px-3 py-1.5 font-mono text-slate-700">{err.phone || "-"}</td>
-                          <td className="px-3 py-1.5 text-rose-700">{err.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </article>
-
+      <BulkImportSection
+        csvInputRef={csvInputRef}
+        csvPreview={csvPreview}
+        csvFileName={csvFileName}
+        isImporting={isImporting}
+        importResult={importResult}
+        onFileChange={handleCsvFile}
+        onImport={() => void handleImport()}
+        onDismissResult={() => setImportResult(null)}
+      />
     </section>
   );
 }

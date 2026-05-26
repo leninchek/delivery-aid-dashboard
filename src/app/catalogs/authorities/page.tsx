@@ -2,11 +2,14 @@
 
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormDateInput } from "@/components/form/FormDateInput";
+import { FormInput } from "@/components/form/FormInput";
+import { FormSelect } from "@/components/form/FormSelect";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
 import { authorityTypeDisplayMap, authorityTypeOptions, formatDateInput } from "@/lib/utils";
 import { fmtBirthDate } from "@/lib/report-utils";
-import { validateMexicanPhone, validateCurp, validateBirthDate } from "@/utils/validators";
+import { validateAuthority } from "@/utils/validators";
 import { showToast } from "@/hooks/useToast";
 import type { Authority, AuthorityType } from "@/types/shared";
 
@@ -53,17 +56,7 @@ export default function AuthoritiesPage() {
       curp: f.curp.trim().toUpperCase(),
       birthDate: f.birthDate || null,
     }),
-    validateFields: (f) => {
-      const errs: Record<string, string> = {};
-      if (!f.name.trim()) errs.name = "El nombre es obligatorio.";
-      const phoneErr = validateMexicanPhone(f.phone);
-      if (phoneErr) errs.phone = phoneErr;
-      const curpErr = validateCurp(f.curp);
-      if (curpErr) errs.curp = curpErr;
-      const birthErr = validateBirthDate(f.birthDate);
-      if (birthErr) errs.birthDate = birthErr;
-      return errs;
-    },
+    validateFields: validateAuthority,
     onSuccess: (action) => showToast(action === "delete" ? "Autoridad eliminada." : "Guardado correctamente."),
   });
 
@@ -190,91 +183,74 @@ export default function AuthoritiesPage() {
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">Tipo</label>
-              <select
-                value={form.type}
-                onChange={(e) => setForm((c) => ({ ...c, type: e.target.value as AuthorityType }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-slate-900"
-              >
-                {authorityTypeOptions.map((type) => (
-                  <option key={type} value={type}>{authorityTypeDisplayMap[type]}</option>
-                ))}
-              </select>
-            </div>
+            <FormSelect
+              label="Tipo"
+              value={form.type}
+              onChange={(v) => setForm((c) => ({ ...c, type: v as AuthorityType }))}
+            >
+              {authorityTypeOptions.map((type) => (
+                <option key={type} value={type}>{authorityTypeDisplayMap[type]}</option>
+              ))}
+            </FormSelect>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-700">Nombre completo</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => {
-                  setForm((c) => ({ ...c, name: e.target.value }));
-                  setFieldErrors((prev) => { const n = { ...prev }; delete n.name; return n; });
-                }}
-                placeholder="Nombre completo"
-                className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.name ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
-              />
-              {fieldErrors.name && <p className="text-xs text-rose-600">{fieldErrors.name}</p>}
-            </div>
+            <FormInput
+              label="Nombre completo"
+              value={form.name}
+              onChange={(v) => {
+                setForm((c) => ({ ...c, name: v }));
+                setFieldErrors((prev) => { const n = { ...prev }; delete n.name; return n; });
+              }}
+              placeholder="Nombre completo"
+              error={fieldErrors.name}
+            />
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.phone}
-                  maxLength={10}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                    setForm((c) => ({ ...c, phone: digits }));
-                    setFieldErrors((prev) => { const n = { ...prev }; delete n.phone; return n; });
-                  }}
-                  placeholder="10 dígitos"
-                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.phone ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
-                />
-                {fieldErrors.phone && <p className="text-xs text-rose-600">{fieldErrors.phone}</p>}
-              </div>
+              <FormInput
+                label="Teléfono"
+                type="tel"
+                inputMode="numeric"
+                value={form.phone}
+                maxLength={10}
+                onChange={(v) => {
+                  const digits = v.replace(/\D/g, "").slice(0, 10);
+                  setForm((c) => ({ ...c, phone: digits }));
+                  setFieldErrors((prev) => { const n = { ...prev }; delete n.phone; return n; });
+                }}
+                placeholder="10 dígitos"
+                error={fieldErrors.phone}
+              />
 
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700">Fecha de nacimiento</label>
-                <input
-                  type="date"
-                  value={form.birthDate}
-                  min={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 100); return d.toISOString().slice(0, 10); })()}
-                  max={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10); })()}
-                  onChange={(e) => {
-                    setForm((c) => ({ ...c, birthDate: e.target.value }));
-                    setFieldErrors((prev) => { const n = { ...prev }; delete n.birthDate; return n; });
-                  }}
-                  className={`w-full rounded-lg border px-3 py-2 outline-none transition focus:border-slate-900 ${fieldErrors.birthDate ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
-                />
-                {fieldErrors.birthDate && <p className="text-xs text-rose-600">{fieldErrors.birthDate}</p>}
-              </div>
+              <FormDateInput
+                label="Fecha de nacimiento"
+                value={form.birthDate}
+                onChange={(v) => {
+                  setForm((c) => ({ ...c, birthDate: v }));
+                  setFieldErrors((prev) => { const n = { ...prev }; delete n.birthDate; return n; });
+                }}
+                minAge={18}
+                maxAge={100}
+                error={fieldErrors.birthDate}
+              />
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-slate-700">CURP</label>
+            <FormInput
+              label="CURP"
+              value={form.curp}
+              maxLength={18}
+              mono
+              onChange={(v) => {
+                const clean = v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
+                setForm((c) => ({ ...c, curp: clean }));
+                setFieldErrors((prev) => { const n = { ...prev }; delete n.curp; return n; });
+              }}
+              placeholder="18 caracteres"
+              error={fieldErrors.curp}
+              labelAccessory={
                 <span className={`text-xs tabular-nums ${form.curp.length === 18 ? "text-emerald-600" : form.curp.length > 0 ? "text-slate-400" : "text-slate-300"}`}>
                   {form.curp.length}/18
                 </span>
-              </div>
-              <input
-                type="text"
-                value={form.curp}
-                maxLength={18}
-                onChange={(e) => {
-                  const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18);
-                  setForm((c) => ({ ...c, curp: clean }));
-                  setFieldErrors((prev) => { const n = { ...prev }; delete n.curp; return n; });
-                }}
-                placeholder="18 caracteres"
-                className={`w-full rounded-lg border px-3 py-2 font-mono outline-none transition focus:border-slate-900 ${fieldErrors.curp ? "border-rose-400 bg-rose-50" : "border-slate-300"}`}
-              />
-              {fieldErrors.curp && <p className="text-xs text-rose-600">{fieldErrors.curp}</p>}
-            </div>
+              }
+            />
 
             {error && (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

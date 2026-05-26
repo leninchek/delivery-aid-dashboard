@@ -5,15 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { ReportImageCell } from "@/components/reports/report-image-cell";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
+import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import {
   computeDateRange,
   exportToCsv,
   fmtDateTime,
   parseTimestamp,
-  sortRows,
   type DatePreset,
 } from "@/lib/report-utils";
 import type { AidType, OrgLevel } from "@/types/shared";
@@ -67,7 +68,6 @@ function formatQuantity(quantity: number | null, unit: string): string {
   return unit ? `${val} ${unit}` : val;
 }
 
-type SortKey = keyof Row;
 type DelivType = "both" | "direct" | "indirect";
 
 
@@ -91,8 +91,6 @@ export default function DeliveriesReportPage() {
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>("all");
 
   const [rows,      setRows]      = useState<Row[]>([]);
-  const [sortKey,   setSortKey]   = useState<SortKey>("date");
-  const [sortDir,   setSortDir]   = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun,    setHasRun]    = useState(false);
   const [isStale,   setIsStale]   = useState(false);
@@ -110,11 +108,6 @@ export default function DeliveriesReportPage() {
     if (hasRun) setIsStale(true);
   }
 
-  function toggleSort(field: SortKey) {
-    if (sortKey === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(field); setSortDir("asc"); }
-  }
-
   const visibleRows = useMemo(() => rows.filter((r) => {
     if (evidenceFilter === "with") return r.evidenceUrls.length > 0;
     if (evidenceFilter === "without") return r.evidenceUrls.length === 0 && r.status !== "pending_sync";
@@ -122,7 +115,7 @@ export default function DeliveriesReportPage() {
     return true;
   }), [rows, evidenceFilter]);
 
-  const sortedRows = useMemo(() => sortRows(visibleRows, sortKey, sortDir), [visibleRows, sortKey, sortDir]);
+  const { sortKey, sortDir, toggleSort, sortedRows } = useReportSort<Row>(visibleRows, "date");
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -346,7 +339,7 @@ export default function DeliveriesReportPage() {
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
+    <div className="space-y-6">
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Reporte de Entregas</h2>
         <p className="mt-2 text-sm text-slate-600">
@@ -448,127 +441,117 @@ export default function DeliveriesReportPage() {
       </div>
 
       {/* ── Reporte general ───────────────────────────────────────────────────── */}
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        <DateRangeFilter
-          preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={(value) => { setPreset(value); markStale(); }}
-          onStart={(value) => { setCustomStart(value); markStale(); }}
-          onEnd={(value) => { setCustomEnd(value); markStale(); }}
-        />
-        <div className="flex flex-wrap gap-3">
-          <select value={delivType} onChange={(e) => { setDelivType(e.target.value as DelivType); markStale(); }}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="both">Todos los tipos</option>
-            <option value="direct">Entrega interna</option>
-            <option value="indirect">Entrega externa</option>
-          </select>
-          <select value={aidTypeId} onChange={(e) => { setAidTypeId(e.target.value); markStale(); }}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todos los tipos de apoyo</option>
-            {aidTypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <select value={levelId} onChange={(e) => { setLevelId(e.target.value); markStale(); }}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todos los niveles</option>
-            {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "" | "synced" | "pending_sync"); markStale(); }}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="">Todos los estados</option>
-            <option value="synced">Sincronizado</option>
-            <option value="pending_sync">Pendiente de sincronizar</option>
-          </select>
-          <select value={evidenceFilter} onChange={(e) => setEvidenceFilter(e.target.value as EvidenceFilter)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
-            <option value="all">Todas las evidencias</option>
-            <option value="with">Con evidencia</option>
-            <option value="without">Sin evidencia</option>
-            <option value="pending">Evidencia pendiente</option>
-          </select>
-        </div>
-        {isStale && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Los filtros del reporte cambiaron. Vuelve a generar para actualizar los resultados.
-          </p>
-        )}
-        <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={isLoading || isLoadingCatalogs}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : isLoadingCatalogs ? "Cargando catálogos..." : "Generar reporte"}
-          </button>
-          {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport} disabled={isStale}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-              Exportar CSV
-            </button>
-          )}
-        </div>
-      </div>
-
-      {hasRun && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-700">
-              {sortedRows.length} {sortedRows.length === 1 ? "registro" : "registros"}
-            </p>
-          </div>
-          {isLoading ? (
-            <TableSkeleton cols={7} />
-          ) : sortedRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Sin resultados. Intenta ampliar el rango de fechas o ajustar los filtros.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr>
-                    <SortTh label="Tipo"         field="type"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Activista"    field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="CURP"         field="curp"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          r.type === "Interna" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"
-                        }`}>{r.type}</span>
-                      </td>
-                      <td className="px-5 py-3 font-medium text-slate-900">{r.activistName}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.aidTypeName}</td>
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{formatQuantity(r.quantity, r.unit)}</td>
-                      <td className="px-5 py-3 text-slate-600 max-w-[180px] truncate" title={r.recipientName || undefined}>
-                        {r.recipientName || "—"}
-                      </td>
-                      <td className="px-5 py-3 font-mono text-xs text-slate-600">{r.curp}</td>
-                      <td className="px-5 py-3">
-                        <button type="button" onClick={() => setSelectedRow(r)}
-                          className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                          Ver
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <ReportShell
+        title=""
+        description=""
+        error={error}
+        isLoading={isLoading}
+        generateLabel={isLoadingCatalogs ? "Cargando catálogos..." : undefined}
+        hasRun={hasRun}
+        rowCount={sortedRows.length}
+        onGenerate={() => void runReport()}
+        onExport={doExport}
+        exportDisabled={isStale}
+        filters={
+          <>
+            <DateRangeFilter
+              preset={preset} customStart={customStart} customEnd={customEnd}
+              onPreset={(value) => { setPreset(value); markStale(); }}
+              onStart={(value) => { setCustomStart(value); markStale(); }}
+              onEnd={(value) => { setCustomEnd(value); markStale(); }}
+            />
+            <div className="flex flex-wrap gap-3">
+              <select value={delivType} onChange={(e) => { setDelivType(e.target.value as DelivType); markStale(); }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="both">Todos los tipos</option>
+                <option value="direct">Entrega interna</option>
+                <option value="indirect">Entrega externa</option>
+              </select>
+              <select value={aidTypeId} onChange={(e) => { setAidTypeId(e.target.value); markStale(); }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="">Todos los tipos de apoyo</option>
+                {aidTypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <select value={levelId} onChange={(e) => { setLevelId(e.target.value); markStale(); }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="">Todos los niveles</option>
+                {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "" | "synced" | "pending_sync"); markStale(); }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="">Todos los estados</option>
+                <option value="synced">Sincronizado</option>
+                <option value="pending_sync">Pendiente de sincronizar</option>
+              </select>
+              <select value={evidenceFilter} onChange={(e) => setEvidenceFilter(e.target.value as EvidenceFilter)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700">
+                <option value="all">Todas las evidencias</option>
+                <option value="with">Con evidencia</option>
+                <option value="without">Sin evidencia</option>
+                <option value="pending">Evidencia pendiente</option>
+              </select>
             </div>
-          )}
-        </div>
-      )}
+            {isStale && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Los filtros del reporte cambiaron. Vuelve a generar para actualizar los resultados.
+              </p>
+            )}
+          </>
+        }
+      >
+        {isLoading ? (
+          <TableSkeleton cols={7} />
+        ) : sortedRows.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-400">
+            Sin resultados. Intenta ampliar el rango de fechas o ajustar los filtros.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100">
+                <tr>
+                  <SortTh label="Tipo"         field="type"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Activista"    field="activistName"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Tipo Apoyo"   field="aidTypeName"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Cantidad"     field="quantity"      sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="Destinatario" field="recipientName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <SortTh label="CURP"         field="curp"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Detalle</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedRows.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        r.type === "Interna" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"
+                      }`}>{r.type}</span>
+                    </td>
+                    <td className="px-5 py-3 font-medium text-slate-900">{r.activistName}</td>
+                    <td className="px-5 py-3 text-slate-600">{r.aidTypeName}</td>
+                    <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{formatQuantity(r.quantity, r.unit)}</td>
+                    <td className="px-5 py-3 text-slate-600 max-w-[180px] truncate" title={r.recipientName || undefined}>
+                      {r.recipientName || "—"}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600">{r.curp}</td>
+                    <td className="px-5 py-3">
+                      <button type="button" onClick={() => setSelectedRow(r)}
+                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                        Ver
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </ReportShell>
+
       {selectedRow && (
         <DeliveryDetailModal row={selectedRow} onClose={() => setSelectedRow(null)} />
       )}
-    </section>
+    </div>
   );
 }
 
