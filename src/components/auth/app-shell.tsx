@@ -29,6 +29,14 @@ const menuSections = [
     ],
   },
   {
+    title: "Captura",
+    links: [
+      { href: "/captura/promovidos", label: "Promovidos"        },
+      { href: "/captura/interna",    label: "Entrega Interna"   },
+      { href: "/captura/externa",    label: "Entrega Externa"   },
+    ],
+  },
+  {
     title: "Catálogos",
     links: [
       { href: "/organization/members",    label: "Miembros Organizacionales" },
@@ -54,7 +62,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
 
   const [isSidebarOpen,    setIsSidebarOpen]    = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["Operación", "Catálogos"]));
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["Operación", "Captura", "Catálogos"]));
 
   const {
     authError, isConfigured, isLoading, missingEnvVars,

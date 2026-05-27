@@ -2,6 +2,7 @@ import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getFunctions, type Functions } from "firebase/functions";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -60,4 +61,9 @@ export function getCloudFunctions(): Functions | null {
   return app
     ? getFunctions(app, process.env.NEXT_PUBLIC_FUNCTIONS_REGION || "us-central1")
     : null;
+}
+
+export function getFirebaseStorage(): FirebaseStorage | null {
+  const app = getFirebaseApp();
+  return app ? getStorage(app) : null;
 }
