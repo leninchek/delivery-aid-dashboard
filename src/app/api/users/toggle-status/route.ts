@@ -1,9 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { requireBackofficeAuth } from "@/lib/require-auth";
 import type { ToggleStatusPayload } from "@/types/app-user";
 
 export async function POST(req: Request) {
+  const auth = await requireBackofficeAuth(req);
+  if (!auth.ok) return auth.response;
+
   let body: ToggleStatusPayload;
 
   try {

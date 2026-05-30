@@ -6,45 +6,63 @@ import { useEffect, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { Toaster } from "@/components/ui/toast";
 import { AuthProvider, useAuth } from "./auth-provider";
+import type { Permission } from "@/types/permissions";
 
-const menuSections = [
+type MenuLink = { href: string; label: string };
+type MenuSection = { title: string; permission: Permission; links: MenuLink[] };
+
+const menuSections: MenuSection[] = [
   {
-    title: "Reportes",
+    title:      "Reportes",
+    permission: "reports",
     links: [
-      { href: "/reports/charts",      label: "Panel de Control"        },
-      { href: "/reports/deliveries",  label: "Entregas"                },
-      { href: "/reports/activists",   label: "Actividad por Activista" },
-      { href: "/reports/promoted",    label: "Promovidos"              },
-      { href: "/reports/communities", label: "Cobertura por Comunidad"    },
-      { href: "/reports/authorities", label: "Autoridades por Comunidad" },
-      { href: "/reports/branch",      label: "Rama Jerárquica"           },
+      { href: "/reports/charts",       label: "Panel de Control"          },
+      { href: "/reports/deliveries",   label: "Entregas"                  },
+      { href: "/reports/activists",    label: "Actividad por Activista"   },
+      { href: "/reports/promoted",     label: "Promovidos"                },
+      { href: "/reports/credentials",  label: "Credenciales"              },
+      { href: "/reports/communities",  label: "Cobertura por Comunidad"   },
+      { href: "/reports/authorities",  label: "Autoridades por Comunidad" },
+      { href: "/reports/branch",       label: "Rama Jerárquica"           },
     ],
   },
   {
-    title: "Operación",
+    title:      "Operación",
+    permission: "operation",
     links: [
-      { href: "/catalogs/org-levels",  label: "Niveles Organizacionales" },
-      { href: "/access/app-users",      label: "Acceso App"               },
-      { href: "/push/campaigns",        label: "Campañas Push"            },
+      { href: "/access/app-users", label: "Acceso App"    },
+      { href: "/push/campaigns",   label: "Campañas Push" },
     ],
   },
   {
-    title: "Captura",
+    title:      "Captura",
+    permission: "capture",
     links: [
-      { href: "/captura/promovidos", label: "Promovidos"        },
-      { href: "/captura/interna",    label: "Entrega Interna"   },
-      { href: "/captura/externa",    label: "Entrega Externa"   },
+      { href: "/captura/promovidos", label: "Promovidos"      },
+      { href: "/captura/interna",    label: "Entrega Interna" },
+      { href: "/captura/externa",    label: "Entrega Externa" },
     ],
   },
   {
-    title: "Catálogos",
+    title:      "Catálogos",
+    permission: "catalogs",
     links: [
-      { href: "/organization/members",    label: "Miembros Organizacionales" },
-      { href: "/catalogs/aid-types",   label: "Tipos de Apoyo"           },
-      { href: "/catalogs/authorities", label: "Autoridades"              },
-      { href: "/catalogs/cities",      label: "Ciudades"                 },
-      { href: "/catalogs/communities", label: "Comunidades"              },
-      { href: "/catalogs/routes",      label: "Rutas"                    },
+      { href: "/organization/members",  label: "Miembros Organizacionales" },
+      { href: "/catalogs/aid-types",    label: "Tipos de Apoyo"            },
+      { href: "/catalogs/authorities",  label: "Autoridades"               },
+      { href: "/catalogs/cities",       label: "Ciudades"                  },
+      { href: "/catalogs/communities",  label: "Comunidades"               },
+      { href: "/catalogs/routes",       label: "Rutas"                     },
+    ],
+  },
+  {
+    title:      "Administración",
+    permission: "admin",
+    links: [
+      { href: "/admin/roles",          label: "Roles y Permisos"          },
+      { href: "/admin/users",          label: "Usuarios Back Office"      },
+      { href: "/admin/org-levels",     label: "Niveles Organizacionales"  },
+      { href: "/admin/delivery-types", label: "Tipos de Entrega"          },
     ],
   },
 ];
@@ -61,8 +79,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
 
-  const [isSidebarOpen,    setIsSidebarOpen]    = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["Operación", "Captura", "Catálogos"]));
+  const [isSidebarOpen,      setIsSidebarOpen]      = useState(false);
+  const [collapsedSections,  setCollapsedSections]  = useState<Set<string>>(
+    new Set(["Operación", "Captura", "Catálogos", "Administración"])
+  );
 
   const {
     authError, isConfigured, isLoading, missingEnvVars,
@@ -71,8 +91,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   const isLoginRoute = pathname === "/login";
 
-  const activeSectionTitle = menuSections.find((section) =>
-    section.links.some((l) => l.href === pathname),
+  // Expand the section that contains the active link
+  const activeSectionTitle = menuSections.find((s) =>
+    s.links.some((l) => l.href === pathname)
   )?.title;
 
   useEffect(() => {
@@ -112,6 +133,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const visibleSections = menuSections.filter((s) =>
+    sessionUser.permissions.includes(s.permission)
+  );
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[1440px]" suppressHydrationWarning>
       {/* Mobile overlay */}
@@ -143,7 +168,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="space-y-5">
-          {menuSections.map((section) => {
+          {visibleSections.map((section) => {
             const isCollapsed = collapsedSections.has(section.title) && section.title !== activeSectionTitle;
             const hasCollapse = section.links.length > 1;
             return (
@@ -213,7 +238,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
             <div className="text-right">
               <p className="text-sm font-medium text-slate-900">{sessionUser.name}</p>
               <p className="text-xs uppercase tracking-wide text-slate-400">
-                {sessionUser.backofficeRole}
+                {sessionUser.roleLabel}
               </p>
             </div>
             <button

@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { requireBackofficeAuth } from "@/lib/require-auth";
 import type { ResetPasswordPayload, ResetPasswordResult } from "@/types/app-user";
 
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -12,6 +13,9 @@ function generateTempPassword(): string {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireBackofficeAuth(req);
+  if (!auth.ok) return auth.response;
+
   let body: ResetPasswordPayload;
 
   try {

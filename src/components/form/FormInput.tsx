@@ -4,7 +4,7 @@ type FormInputProps = {
   onChange: (value: string) => void;
   error?: string;
   placeholder?: string;
-  type?: "text" | "tel" | "date" | "number";
+  type?: "text" | "tel" | "date" | "number" | "email" | "password";
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   maxLength?: number;
   required?: boolean;

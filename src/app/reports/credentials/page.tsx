@@ -45,7 +45,7 @@ const CREDENTIAL_LABELS: Record<CredentialFilter, string> = {
   none: "Sin credencial",
 };
 
-export default function PromotidosPage() {
+export default function CredentialsPage() {
   const [promoted, setPromoted] = useState<PromotedPerson[]>([]);
   const [members, setMembers] = useState<NamedEntity[]>([]);
   const [communities, setCommunities] = useState<NamedEntity[]>([]);
@@ -128,15 +128,36 @@ export default function PromotidosPage() {
     });
   }, [promoted, searchText, activistFilter, communityFilter, credentialFilter]);
 
+  function exportCsv() {
+    const rows = [
+      ["Nombre", "CURP", "Teléfono", "Activista", "Comunidad", "Credencial"],
+      ...filtered.map((p) => [
+        p.name,
+        p.curp,
+        p.phone,
+        memberById.get(p.activistId) ?? "",
+        p.communityId ? (communityById.get(p.communityId) ?? "") : "",
+        CREDENTIAL_LABELS[getCredentialStatus(p)],
+      ]),
+    ];
+    const csv  = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `credenciales_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Promovidos</h2>
+        <h2 className="text-3xl font-semibold tracking-tight">Credenciales de Promovidos</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Todos los promovidos activos en la organización. Haz clic en un registro para ver
-          detalles y credenciales.
+          Verifica el estado de las credenciales INE de todos los promovidos. Haz clic en un registro para ver la foto.
         </p>
       </header>
 
@@ -154,9 +175,19 @@ export default function PromotidosPage() {
               Filtra por activista, comunidad y estado de credencial.
             </p>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            {filtered.length} registros
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              {filtered.length} registros
+            </span>
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={filtered.length === 0}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Exportar CSV
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

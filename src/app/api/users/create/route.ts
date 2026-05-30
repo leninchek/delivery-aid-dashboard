@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { requireBackofficeAuth } from "@/lib/require-auth";
 import type { CreateUserPayload, CreateUserResult } from "@/types/app-user";
 
 const PHONE_REGEX = /^\d{10}$/;
@@ -10,6 +11,9 @@ function buildTempPassword(phone: string): string {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireBackofficeAuth(req);
+  if (!auth.ok) return auth.response;
+
   let body: CreateUserPayload;
 
   try {
@@ -28,16 +32,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "El nivel organizacional es obligatorio." }, { status: 400 });
   }
 
-  const email       = `${phone}@deliveryaid.app`;
+  const email        = `${phone}@deliveryaid.app`;
   const tempPassword = buildTempPassword(phone);
 
   try {
-    const auth = adminAuth();
-    const db   = adminDb();
+    const authSdk = adminAuth();
+    const db      = adminDb();
 
     // ── Verificar teléfono único ─────────────────────────────────────────────
     try {
-      await auth.getUserByEmail(email);
+      await authSdk.getUserByEmail(email);
       return NextResponse.json({ error: "Ya existe una cuenta con ese número de teléfono." }, { status: 409 });
     } catch (lookupErr: unknown) {
       const code = (lookupErr as { code?: string }).code;
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
     }
 
     // ── Crear cuenta en Firebase Auth ────────────────────────────────────────
-    const authUser = await auth.createUser({ email, password: tempPassword, displayName: phone });
+    const authUser = await authSdk.createUser({ email, password: tempPassword, displayName: phone });
     const uid      = authUser.uid;
 
     // ── Calcular path jerárquico ─────────────────────────────────────────────

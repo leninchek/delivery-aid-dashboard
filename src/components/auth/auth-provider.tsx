@@ -22,23 +22,24 @@ import {
   getMissingFirebaseEnvVars,
   hasFirebaseConfig,
 } from "@/lib";
+import { PERMISSIONS } from "@/types/permissions";
 
-type BackofficeRole = "admin" | "supervisor" | "data_entry";
-
-type SessionUser = {
-  uid: string;
-  email: string | null;
-  name: string;
-  backofficeRole: BackofficeRole;
+export type SessionUser = {
+  uid:           string;
+  email:         string | null;
+  name:          string;
+  backofficeRole: string;
+  roleLabel:     string;
+  permissions:   string[];
 };
 
 type AuthContextValue = {
-  isLoading: boolean;
-  isConfigured: boolean;
-  missingEnvVars: string[];
-  sessionUser: SessionUser | null;
-  authError: string | null;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
+  isLoading:          boolean;
+  isConfigured:       boolean;
+  missingEnvVars:     string[];
+  sessionUser:        SessionUser | null;
+  authError:          string | null;
+  signInWithEmail:    (email: string, password: string) => Promise<void>;
   signOutCurrentUser: () => Promise<void>;
 };
 
@@ -88,31 +89,53 @@ async function resolveSessionUser(user: User): Promise<SessionUser> {
     throw new Error("La cuenta de Back Office esta inactiva.");
   }
 
-  if (!data.backofficeRole) {
+  const roleId: string = data.backofficeRole;
+  if (!roleId) {
     throw new Error("La cuenta no tiene un rol Back Office valido.");
   }
 
+  // Admin role always has all permissions — no Firestore doc required for bootstrap
+  if (roleId === "admin") {
+    return {
+      uid:           user.uid,
+      email:         user.email,
+      name:          data.name || user.email || "Back Office User",
+      backofficeRole: roleId,
+      roleLabel:     "Administrador",
+      permissions:   [...PERMISSIONS],
+    };
+  }
+
+  const roleSnap = await getDoc(doc(firestoreDb, "BackofficeRoles", roleId));
+
+  if (!roleSnap.exists()) {
+    throw new Error(`El rol "${roleId}" no está configurado en Back Office.`);
+  }
+
+  const roleData = roleSnap.data();
+
   return {
-    uid: user.uid,
-    email: user.email,
-    name: data.name || user.email || "Back Office User",
-    backofficeRole: data.backofficeRole as BackofficeRole,
+    uid:           user.uid,
+    email:         user.email,
+    name:          data.name || user.email || "Back Office User",
+    backofficeRole: roleId,
+    roleLabel:     (roleData.name as string) || roleId,
+    permissions:   (roleData.permissions as string[]) ?? [],
   };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isConfigured = hasFirebaseConfig();
+  const isConfigured  = hasFirebaseConfig();
   const missingEnvVars = getMissingFirebaseEnvVars();
 
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
-  const [isLoading, setIsLoading] = useState(() => isConfigured && Boolean(getFirebaseAuth()));
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading,   setIsLoading]   = useState(() => isConfigured && Boolean(getFirebaseAuth()));
+  const [authError,   setAuthError]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!isConfigured) return;
 
     const auth = getFirebaseAuth();
-
     if (!auth) return;
 
     // Failsafe: evita que la UI quede atrapada en "Validando sesion..." si Auth no responde.
@@ -161,11 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authError,
       signInWithEmail: async (email: string, password: string) => {
         const auth = getFirebaseAuth();
-
-        if (!auth) {
-          throw new Error("Firebase Auth no esta configurado.");
-        }
-
+        if (!auth) throw new Error("Firebase Auth no esta configurado.");
         setAuthError(null);
         try {
           await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -177,11 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOutCurrentUser: async () => {
         const auth = getFirebaseAuth();
-
-        if (!auth) {
-          return;
-        }
-
+        if (!auth) return;
         setAuthError(null);
         await signOut(auth);
       },
@@ -194,10 +209,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }
