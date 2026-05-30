@@ -37,7 +37,7 @@ Back Office (Next.js export estático)
            └── sendPushCampaign
 ```
 
-El Back Office se despliega como **export estático** (carpeta `out/`) en **HostGator shared hosting**. No hay servidor Node.js en producción; todas las operaciones que requieren privilegios de Admin SDK se delegan a Cloud Functions.
+El Back Office se despliega como **export estático** (carpeta `out/`) en **Firebase Hosting**. No hay servidor Node.js en producción; todas las operaciones que requieren privilegios de Admin SDK se delegan a Cloud Functions.
 
 ---
 
@@ -265,7 +265,11 @@ npm run test:e2e:headed
 npm run build
 ```
 
-Genera la carpeta `out/` con el export estático. Subir el contenido de `out/` al servidor de HostGator por FTP/SFTP.
+Genera la carpeta `out/` con el export estático. Luego desplegar desde la raíz del workspace:
+
+```bash
+firebase deploy --only hosting
+```
 
 > Al ser export estático, las API routes de Next.js **no están disponibles en producción**. Todas las operaciones privilegiadas se ejecutan a través de **Cloud Functions** (`Delivery-Aid-CloudFunctions`).
 

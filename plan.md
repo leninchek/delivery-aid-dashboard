@@ -17,7 +17,7 @@ catálogos, organigrama y reportes desde un panel web (Back Office).
 | `Delivery-Aid-CloudFunctions` | Node.js 22 + TypeScript + Firebase Functions v2 | En producción |
 
 **Backend compartido:** Firebase (Firestore + Storage + Auth)
-**Hosting Back Office:** HostGator shared — Next.js export estático
+**Hosting Back Office:** Firebase Hosting — Next.js export estático
 
 **Push notifications:** Firebase Cloud Messaging (FCM) + endpoint seguro (Cloud Functions)
 
@@ -536,7 +536,7 @@ Reglas mínimas del endpoint:
 | Niveles del organigrama | Catálogo dinámico `OrgLevels` | Permite agregar figuras sin cambiar código |
 | Validación de stock | Sin validación | Simplicidad operativa |
 | Campos de personas | `name`, `phone`, `curp`, `birthDate` obligatorios en todos | Trazabilidad y futuro envío de mensajes |
-| Hosting Back Office | HostGator shared + export estático | Compatible, económico, sin Node.js |
+| Hosting Back Office | Firebase Hosting + export estático | Mismo ecosistema Firebase; deploy con CLI junto a Cloud Functions |
 | Idioma de campos | Inglés en toda la base de datos | Estándar de desarrollo |
 | Persistencia local Android | Firestore offline nativo (sin Room) | Menor complejidad y sincronización automática del SDK |
 | Anti-duplicados offline | `idempotencyKey` = ID del documento Firestore | Idempotencia nativa en Firestore |
