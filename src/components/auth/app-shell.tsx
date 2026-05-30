@@ -13,6 +13,15 @@ type MenuSection = { title: string; permission: Permission; links: MenuLink[] };
 
 const menuSections: MenuSection[] = [
   {
+    title:      "Captura",
+    permission: "capture",
+    links: [
+      { href: "/captura/promovidos", label: "Promovidos"      },
+      { href: "/captura/interna",    label: "Entrega Interna" },
+      { href: "/captura/externa",    label: "Entrega Externa" },
+    ],
+  },
+  {
     title:      "Reportes",
     permission: "reports",
     links: [
@@ -35,24 +44,15 @@ const menuSections: MenuSection[] = [
     ],
   },
   {
-    title:      "Captura",
-    permission: "capture",
-    links: [
-      { href: "/captura/promovidos", label: "Promovidos"      },
-      { href: "/captura/interna",    label: "Entrega Interna" },
-      { href: "/captura/externa",    label: "Entrega Externa" },
-    ],
-  },
-  {
     title:      "Catálogos",
     permission: "catalogs",
     links: [
       { href: "/organization/members",  label: "Miembros Organizacionales" },
+      { href: "/catalogs/communities",  label: "Comunidades"               },
+      { href: "/catalogs/cities",       label: "Ciudades"                  },
+      { href: "/catalogs/routes",       label: "Rutas"                     },
       { href: "/catalogs/aid-types",    label: "Tipos de Apoyo"            },
       { href: "/catalogs/authorities",  label: "Autoridades"               },
-      { href: "/catalogs/cities",       label: "Ciudades"                  },
-      { href: "/catalogs/communities",  label: "Comunidades"               },
-      { href: "/catalogs/routes",       label: "Rutas"                     },
     ],
   },
   {
@@ -81,7 +81,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   const [isSidebarOpen,      setIsSidebarOpen]      = useState(false);
   const [collapsedSections,  setCollapsedSections]  = useState<Set<string>>(
-    new Set(["Operación", "Captura", "Catálogos", "Administración"])
+    new Set(["Reportes", "Operación", "Catálogos", "Administración"])
   );
 
   const {
@@ -127,7 +127,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-100" suppressHydrationWarning>
         <div className="rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-600">
-          Validando sesion...
+          Validando sesión...
         </div>
       </main>
     );
@@ -161,9 +161,12 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-slate-700"
+            aria-label="Cerrar menú"
+            className="lg:hidden rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
-            ✕
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -225,9 +228,12 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden text-slate-500 hover:text-slate-700"
+              aria-label="Abrir menú"
+              className="lg:hidden rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             >
-              ☰
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
             {authError && (
               <p className="text-xs text-rose-600">{authError}</p>
@@ -235,9 +241,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-900">{sessionUser.name}</p>
-              <p className="text-xs uppercase tracking-wide text-slate-400">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-sm font-medium text-slate-900 max-w-[160px]">{sessionUser.name}</p>
+              <p className="truncate text-xs uppercase tracking-wide text-slate-400 max-w-[160px]">
                 {sessionUser.roleLabel}
               </p>
             </div>
@@ -246,7 +252,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
               onClick={() => void signOutCurrentUser()}
               className="rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Cerrar sesion
+              Cerrar sesión
             </button>
           </div>
         </header>

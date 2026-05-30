@@ -184,8 +184,7 @@ function RolesContent() {
             {roles.map((role) => (
               <div
                 key={role.id}
-                onClick={() => startEdit(role)}
-                className={`flex cursor-pointer items-center justify-between rounded-lg border px-4 py-3 transition hover:border-slate-300 hover:bg-slate-50 ${
+                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
                   editing?.id === role.id
                     ? "border-slate-900 bg-slate-50"
                     : "border-slate-200 bg-white"
@@ -200,14 +199,23 @@ function RolesContent() {
                       : " · Sin permisos"}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={isDeleting === role.id}
-                  onClick={(e) => { e.stopPropagation(); void handleDelete(role); }}
-                  className="rounded px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                >
-                  {isDeleting === role.id ? "..." : "Eliminar"}
-                </button>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(role)}
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting === role.id}
+                    onClick={() => void handleDelete(role)}
+                    className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    {isDeleting === role.id ? "..." : "Eliminar"}
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -228,15 +236,6 @@ function RolesContent() {
                 {isEditing ? "Modifica el nombre y los permisos." : "Asigna un nombre y permisos al nuevo rol."}
               </p>
             </div>
-            {isEditing && (
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="text-sm font-medium text-slate-500 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-            )}
           </div>
 
           <div className="space-y-5">
@@ -277,14 +276,25 @@ function RolesContent() {
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={isSaving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSaving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear rol"}
-            </button>
+            <div className="flex gap-3">
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {isSaving ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear rol"}
+              </button>
+            </div>
           </div>
         </article>
 

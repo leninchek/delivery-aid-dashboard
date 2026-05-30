@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
@@ -28,33 +28,32 @@ export default function AuthoritiesReportPage() {
   const [selectedId,  setSelectedId]  = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isConfigured) return;
     const db = getFirestoreDb();
     if (!db) return;
 
-    const u1 = onSnapshot(query(collection(db, "Communities"), orderBy("name", "asc")), (snap) =>
-      setCommunities(snap.docs.map((d) => ({
+    Promise.all([
+      getDocs(query(collection(db, "Communities"), orderBy("name", "asc"))),
+      getDocs(query(collection(db, "Authorities"), orderBy("name", "asc"))),
+      getDocs(query(collection(db, "Cities"),      orderBy("name", "asc"))),
+    ]).then(([commSnap, authSnap, citySnap]) => {
+      setCommunities(commSnap.docs.map((d) => ({
         id:                   d.id,
         name:                 d.get("name")                 || "",
         cityId:               d.get("cityId")               || null,
         delegateId:           d.get("delegateId")           || null,
         subDelegateId:        d.get("subDelegateId")        || null,
         ejidalCommissionerId: d.get("ejidalCommissionerId") || null,
-      })))
-    );
-
-    const u2 = onSnapshot(query(collection(db, "Authorities"), orderBy("name", "asc")), (snap) =>
-      setAuthorities(snap.docs.map((d) => ({
+      })));
+      setAuthorities(authSnap.docs.map((d) => ({
         id:        d.id,
         type:      d.get("type")      || "delegate",
         name:      d.get("name")      || "",
         phone:     d.get("phone")     || "",
         curp:      d.get("curp")      || "",
         birthDate: d.get("birthDate") || "",
-      })))
-    );
-
-    const u3 = onSnapshot(query(collection(db, "Cities"), orderBy("name", "asc")), (snap) =>
-      setCities(snap.docs.map((d) => ({
+      })));
+      setCities(citySnap.docs.map((d) => ({
         id:                   d.id,
         name:                 d.get("name")  || "",
         state:                d.get("state") || "",
@@ -62,11 +61,9 @@ export default function AuthoritiesReportPage() {
         subDelegateId:        null,
         mayorId:              null,
         ejidalCommissionerId: null,
-      })))
-    );
-
-    return () => { u1(); u2(); u3(); };
-  }, []);
+      })));
+    });
+  }, [isConfigured]);
 
   const authorityMap = useMemo(() => new Map(authorities.map((a) => [a.id, a])), [authorities]);
   const cityMap      = useMemo(() => new Map(cities.map((c) => [c.id, c])),      [cities]);

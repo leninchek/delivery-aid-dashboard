@@ -86,12 +86,12 @@ async function resolveSessionUser(user: User): Promise<SessionUser> {
   }
 
   if (!data.active) {
-    throw new Error("La cuenta de Back Office esta inactiva.");
+    throw new Error("La cuenta de Back Office está inactiva.");
   }
 
   const roleId: string = data.backofficeRole;
   if (!roleId) {
-    throw new Error("La cuenta no tiene un rol Back Office valido.");
+    throw new Error("La cuenta no tiene un rol Back Office válido.");
   }
 
   // Admin role always has all permissions — no Firestore doc required for bootstrap
@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSessionUser(resolvedUser);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "No fue posible validar la sesion.";
+          error instanceof Error ? error.message : "No fue posible validar la sesión.";
         setSessionUser(null);
         setAuthError(message);
         await signOut(auth);
@@ -184,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authError,
       signInWithEmail: async (email: string, password: string) => {
         const auth = getFirebaseAuth();
-        if (!auth) throw new Error("Firebase Auth no esta configurado.");
+        if (!auth) throw new Error("Firebase Auth no está configurado.");
         setAuthError(null);
         try {
           await signInWithEmailAndPassword(auth, email.trim(), password);

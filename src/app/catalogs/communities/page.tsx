@@ -240,15 +240,6 @@ export default function CommunitiesPage() {
               </h3>
               <p className="text-sm text-slate-600">El nombre es obligatorio.</p>
             </div>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-            )}
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
@@ -310,13 +301,24 @@ export default function CommunitiesPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSaving ? "Guardando..." : editingId ? "Actualizar comunidad" : "Crear comunidad"}
-            </button>
+            <div className="flex gap-3">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {isSaving ? "Guardando..." : editingId ? "Actualizar comunidad" : "Crear comunidad"}
+              </button>
+            </div>
           </form>
         </article>
       </div>

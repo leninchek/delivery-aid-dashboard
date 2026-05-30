@@ -59,7 +59,7 @@ export default function LoginPage() {
           Entrega de Apoyos
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-          Iniciar sesion
+          Iniciar sesión
         </h1>
         <p className="mt-2 text-sm text-slate-600">
           Acceso exclusivo para usuarios Back Office activos.

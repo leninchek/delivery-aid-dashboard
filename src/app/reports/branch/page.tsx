@@ -4,6 +4,7 @@ import { collection, getDocs, query, Timestamp, where } from "firebase/firestore
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { useReportSort } from "@/hooks/useReportSort";
@@ -219,158 +220,136 @@ export default function BranchReportPage() {
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Rama Jerárquica</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Actividad operativa de los miembros organizacionales con opciones de alcance.
-        </p>
-      </header>
-
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
-      )}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-        {/* Mode selector */}
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Alcance</p>
-          <div className="flex divide-x divide-slate-200 overflow-hidden rounded-lg border border-slate-200 w-fit">
-            {MODE_LABELS.map((m) => (
-              <button key={m.value} type="button"
-                onClick={() => { setMode(m.value); setHasRun(false); }}
-                className={`px-4 py-1.5 text-sm font-medium transition ${
-                  mode === m.value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-                }`}>{m.label}</button>
-            ))}
-          </div>
-        </div>
-
-        {mode === "level" && (
+    <ReportShell
+      title="Rama Jerárquica"
+      description="Actividad operativa de los miembros organizacionales con opciones de alcance."
+      filters={
+        <div className="space-y-4">
+          {/* Mode selector */}
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Nivel (incluye todos los niveles inferiores)
-            </p>
-            <select value={selectedLevelId} onChange={(e) => setSelectedLevelId(e.target.value)}
-              disabled={isLoadingBase}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:opacity-50">
-              <option value="">Selecciona un nivel…</option>
-              {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Alcance</p>
+            <div className="flex divide-x divide-slate-200 overflow-hidden rounded-lg border border-slate-200 w-fit">
+              {MODE_LABELS.map((m) => (
+                <button key={m.value} type="button"
+                  onClick={() => { setMode(m.value); setHasRun(false); }}
+                  className={`px-4 py-1.5 text-sm font-medium transition ${
+                    mode === m.value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  }`}>{m.label}</button>
+              ))}
+            </div>
           </div>
-        )}
 
-        {mode === "member" && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Miembro raíz</p>
-            <div className="relative max-w-sm">
-              <input type="text"
-                placeholder={isLoadingBase ? "Cargando miembros…" : "Buscar por nombre…"}
+          {mode === "level" && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Nivel (incluye todos los niveles inferiores)
+              </p>
+              <select value={selectedLevelId} onChange={(e) => setSelectedLevelId(e.target.value)}
                 disabled={isLoadingBase}
-                value={memberSearch}
-                onChange={(e) => { setMemberSearch(e.target.value); setSelectedMember(null); setShowSuggestions(true); }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
-                  {suggestions.map((m) => (
-                    <li key={m.id}>
-                      <button type="button"
-                        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-50"
-                        onMouseDown={() => { setSelectedMember(m); setMemberSearch(m.name); setShowSuggestions(false); }}>
-                        <span className="font-medium text-slate-900">{m.name}</span>
-                        <span className="text-xs text-slate-400">{m.levelName}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:opacity-50">
+                <option value="">Selecciona un nivel…</option>
+                {orgLevels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {mode === "member" && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Miembro raíz</p>
+              <div className="relative max-w-sm">
+                <input type="text"
+                  placeholder={isLoadingBase ? "Cargando miembros…" : "Buscar por nombre…"}
+                  disabled={isLoadingBase}
+                  value={memberSearch}
+                  onChange={(e) => { setMemberSearch(e.target.value); setSelectedMember(null); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                    {suggestions.map((m) => (
+                      <li key={m.id}>
+                        <button type="button"
+                          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-50"
+                          onMouseDown={() => { setSelectedMember(m); setMemberSearch(m.name); setShowSuggestions(false); }}>
+                          <span className="font-medium text-slate-900">{m.name}</span>
+                          <span className="text-xs text-slate-400">{m.levelName}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {selectedMember && (
+                <p className="text-xs text-slate-500">
+                  Rama de <span className="font-medium text-slate-700">{selectedMember.name}</span> ({selectedMember.levelName})
+                </p>
               )}
             </div>
-            {selectedMember && (
-              <p className="text-xs text-slate-500">
-                Rama de <span className="font-medium text-slate-700">{selectedMember.name}</span> ({selectedMember.levelName})
-              </p>
-            )}
-          </div>
-        )}
-
-        <DateRangeFilter
-          preset={preset} customStart={customStart} customEnd={customEnd}
-          onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
-        />
-
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={includePromoted}
-            onChange={(e) => { setIncludePromoted(e.target.checked); setHasRun(false); }}
-            className="rounded border-slate-300" />
-          Incluir conteo de promovidos registrados
-        </label>
-
-        <div className="flex gap-3">
-          <button type="button" onClick={() => void runReport()} disabled={!isReady()}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-            {isLoading ? "Generando..." : "Generar reporte"}
-          </button>
-          {hasRun && sortedRows.length > 0 && (
-            <button type="button" onClick={doExport}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Exportar CSV
-            </button>
           )}
+
+          <DateRangeFilter
+            preset={preset} customStart={customStart} customEnd={customEnd}
+            onPreset={setPreset} onStart={setCustomStart} onEnd={setCustomEnd}
+          />
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={includePromoted}
+              onChange={(e) => { setIncludePromoted(e.target.checked); setHasRun(false); }}
+              className="rounded border-slate-300" />
+            Incluir conteo de promovidos registrados
+          </label>
         </div>
-      </div>
-
-      {hasRun && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-medium text-slate-700">
-              {sortedRows.length} {sortedRows.length === 1 ? "miembro" : "miembros"}
-            </p>
-          </div>
-          {isLoading ? (
-            <TableSkeleton cols={includePromoted ? 6 : 5} />
-          ) : sortedRows.length === 0 ? (
-            <p className="py-12 text-center text-sm text-slate-400">
-              Sin resultados. Intenta cambiar el alcance o ampliar el rango de fechas.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-100">
-                  <tr>
-                    <SortTh label="Nombre"         field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Nivel"          field="levelRank"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                    <SortTh label="Con benef."     field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <SortTh label="Sin benef."     field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
-                    {includePromoted && <SortTh label="Promovidos" field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />}
-                    <SortTh label="Últ. actividad" field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sortedRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
-                      <td className="px-5 py-3">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          {r.levelName}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums text-blue-700">{r.directCount}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-violet-700">{r.indirectCount}</td>
-                      {includePromoted && (
-                        <td className="px-5 py-3 text-right tabular-nums text-emerald-700">{r.promotedCount}</td>
-                      )}
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastActivity)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      }
+      error={error}
+      onGenerate={() => void runReport()}
+      isLoading={isLoading}
+      hasRun={hasRun}
+      rowCount={sortedRows.length}
+      rowLabel={["miembro", "miembros"]}
+      onExport={sortedRows.length > 0 ? doExport : undefined}
+    >
+      {isLoading ? (
+        <TableSkeleton cols={includePromoted ? 6 : 5} />
+      ) : sortedRows.length === 0 ? (
+        <p className="py-12 text-center text-sm text-slate-400">
+          Sin resultados. Intenta cambiar el alcance o ampliar el rango de fechas.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100">
+              <tr>
+                <SortTh label="Nombre"         field="name"          sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Nivel"          field="levelRank"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+                <SortTh label="Con benef."     field="directCount"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                <SortTh label="Sin benef."     field="indirectCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />
+                {includePromoted && <SortTh label="Promovidos" field="promotedCount" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-right" />}
+                <SortTh label="Últ. actividad" field="lastActivity"  sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} className="text-left" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedRows.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-50">
+                  <td className="px-5 py-3 font-medium text-slate-900">{r.name}</td>
+                  <td className="px-5 py-3">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                      {r.levelName}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums text-blue-700">{r.directCount}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-violet-700">{r.indirectCount}</td>
+                  {includePromoted && (
+                    <td className="px-5 py-3 text-right tabular-nums text-emerald-700">{r.promotedCount}</td>
+                  )}
+                  <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(r.lastActivity)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </section>
+    </ReportShell>
   );
 }

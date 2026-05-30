@@ -50,7 +50,7 @@ export default function AidTypesPage() {
       <header>
         <h2 className="text-3xl font-semibold tracking-tight">Tipos de Apoyo</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Catalogo de tipos de apoyo con unidad de medida y estado activo.
+          Catálogo de tipos de apoyo con unidad de medida y estado activo.
         </p>
       </header>
 
@@ -135,15 +135,6 @@ export default function AidTypesPage() {
               </h3>
               <p className="text-sm text-slate-600">Define nombre, unidad y estado operativo.</p>
             </div>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
-                Cancelar
-              </button>
-            )}
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
@@ -181,13 +172,24 @@ export default function AidTypesPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSaving ? "Guardando..." : editingId ? "Actualizar tipo de apoyo" : "Crear tipo de apoyo"}
-            </button>
+            <div className="flex gap-3">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {isSaving ? "Guardando..." : editingId ? "Actualizar tipo de apoyo" : "Crear tipo de apoyo"}
+              </button>
+            </div>
           </form>
         </article>
       </div>

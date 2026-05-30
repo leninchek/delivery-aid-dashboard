@@ -168,6 +168,7 @@ function AdminUsersContent() {
                   <th className="px-4 py-3 font-medium">Usuario</th>
                   <th className="px-4 py-3 font-medium">Rol</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -178,12 +179,7 @@ function AdminUsersContent() {
                   return (
                     <tr
                       key={u.uid}
-                      onClick={() => u.backofficeRole !== "admin" && startEdit(u)}
-                      className={`transition ${
-                        u.backofficeRole === "admin"
-                          ? "cursor-default"
-                          : "cursor-pointer hover:bg-slate-50"
-                      } ${isSelected ? "bg-slate-50" : ""}`}
+                      className={isSelected ? "bg-slate-50" : ""}
                     >
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-900">{u.name || "—"}</p>
@@ -197,12 +193,23 @@ function AdminUsersContent() {
                           {u.active ? "Activo" : "Inactivo"}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        {u.backofficeRole !== "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(u)}
+                            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          >
+                            Editar
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {users.length === 0 && (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={3}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
                       No hay usuarios Back Office registrados.
                     </td>
                   </tr>
@@ -223,11 +230,6 @@ function AdminUsersContent() {
                 {isEditing ? editingUser.email : "Crea una cuenta con acceso al Back Office."}
               </p>
             </div>
-            {isEditing && (
-              <button type="button" onClick={cancelEdit} className="text-sm font-medium text-slate-500 hover:text-slate-900">
-                Cancelar
-              </button>
-            )}
           </div>
 
           {error && (
@@ -262,14 +264,23 @@ function AdminUsersContent() {
                 />
                 <span className="text-sm font-medium text-slate-900">Cuenta activa</span>
               </label>
-              <button
-                type="button"
-                onClick={() => void handleUpdate()}
-                disabled={isSaving}
-                className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                {isSaving ? "Guardando..." : "Guardar cambios"}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleUpdate()}
+                  disabled={isSaving}
+                  className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isSaving ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
             </div>
           ) : (
             /* ── Crear ── */

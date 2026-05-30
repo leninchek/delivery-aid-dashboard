@@ -1,17 +1,12 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { ReportShell } from "@/components/reports/ReportShell";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
-import { fmtBirthDate } from "@/lib/report-utils";
+import { exportToCsv, fmtBirthDate } from "@/lib/report-utils";
 
 type PromotedPerson = {
   id: string;
@@ -31,7 +26,6 @@ type NamedEntity = { id: string; name: string };
 
 type CredentialFilter = "all" | "complete" | "pending" | "none";
 
-
 function getCredentialStatus(p: PromotedPerson): "complete" | "pending" | "none" {
   if (p.credentialFrontUrl) return "complete";
   if (p.pendingCredentialFront || p.pendingCredentialBack) return "pending";
@@ -39,218 +33,174 @@ function getCredentialStatus(p: PromotedPerson): "complete" | "pending" | "none"
 }
 
 const CREDENTIAL_LABELS: Record<CredentialFilter, string> = {
-  all: "Todas",
+  all:      "Todas",
   complete: "Con credencial",
-  pending: "Pendiente de sincronizar",
-  none: "Sin credencial",
+  pending:  "Pendiente de sincronizar",
+  none:     "Sin credencial",
 };
 
 export default function CredentialsPage() {
-  const [promoted, setPromoted] = useState<PromotedPerson[]>([]);
-  const [members, setMembers] = useState<NamedEntity[]>([]);
+  const [members,     setMembers]     = useState<NamedEntity[]>([]);
   const [communities, setCommunities] = useState<NamedEntity[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<PromotedPerson | null>(null);
-  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [promoted,    setPromoted]    = useState<PromotedPerson[]>([]);
+  const [error,       setError]       = useState<string | null>(null);
+  const [isLoading,   setIsLoading]   = useState(false);
+  const [hasRun,      setHasRun]      = useState(false);
+  const [selected,    setSelected]    = useState<PromotedPerson | null>(null);
+  const [zoomUrl,     setZoomUrl]     = useState<string | null>(null);
 
-  const [searchText, setSearchText] = useState("");
-  const [activistFilter, setActivistFilter] = useState("");
-  const [communityFilter, setCommunityFilter] = useState("");
+  const [searchText,       setSearchText]       = useState("");
+  const [activistFilter,   setActivistFilter]   = useState("");
+  const [communityFilter,  setCommunityFilter]  = useState("");
   const [credentialFilter, setCredentialFilter] = useState<CredentialFilter>("all");
 
   const isConfigured = hasFirebaseConfig();
-  const missingVars = getMissingFirebaseEnvVars();
+  const missingVars  = getMissingFirebaseEnvVars();
 
   useEffect(() => {
     if (!isConfigured) return;
     const db = getFirestoreDb();
     if (!db) return;
-
-    const unsubPromoted = onSnapshot(
-      query(collection(db, "Promoted"), where("active", "==", true)),
-      (snap) => {
-        setPromoted(
-          snap.docs
-            .map((d) => ({
-              id: d.id,
-              name: d.get("name") || "",
-              phone: d.get("phone") || "",
-              curp: d.get("curp") || "",
-              birthDate: d.get("birthDate"),
-              activistId: d.get("activistId") || "",
-              communityId: d.get("communityId") || null,
-              credentialFrontUrl: d.get("credentialFrontUrl") || null,
-              credentialBackUrl: d.get("credentialBackUrl") || null,
-              pendingCredentialFront: Boolean(d.get("pendingCredentialFront")),
-              pendingCredentialBack: Boolean(d.get("pendingCredentialBack")),
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name, "es"))
-        );
-      },
-      (err) => setError(err.message)
-    );
-
-    const unsubMembers = onSnapshot(
-      query(collection(db, "OrgMembers"), orderBy("name", "asc")),
-      (snap) => setMembers(snap.docs.map((d) => ({ id: d.id, name: d.get("name") || "" }))),
-      (err) => setError(err.message)
-    );
-
-    const unsubCommunities = onSnapshot(
-      query(collection(db, "Communities"), orderBy("name", "asc")),
-      (snap) =>
-        setCommunities(snap.docs.map((d) => ({ id: d.id, name: d.get("name") || "" }))),
-      (err) => setError(err.message)
-    );
-
-    return () => {
-      unsubPromoted();
-      unsubMembers();
-      unsubCommunities();
-    };
+    Promise.all([
+      getDocs(query(collection(db, "OrgMembers"),   orderBy("name", "asc"))),
+      getDocs(query(collection(db, "Communities"),  orderBy("name", "asc"))),
+    ]).then(([membersSnap, commSnap]) => {
+      setMembers(membersSnap.docs.map((d) => ({ id: d.id, name: (d.get("name") as string) || "" })));
+      setCommunities(commSnap.docs.map((d)  => ({ id: d.id, name: (d.get("name") as string) || "" })));
+    }).catch((e) => setError((e as Error).message));
   }, [isConfigured]);
 
-  const memberById = useMemo(() => new Map(members.map((m) => [m.id, m.name])), [members]);
-  const communityById = useMemo(
-    () => new Map(communities.map((c) => [c.id, c.name])),
-    [communities]
-  );
+  async function runReport() {
+    const db = getFirestoreDb();
+    if (!db) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const snap = await getDocs(
+        query(collection(db, "Promoted"), where("active", "==", true))
+      );
+      setPromoted(
+        snap.docs
+          .map((d) => ({
+            id:                    d.id,
+            name:                  (d.get("name")  as string) || "",
+            phone:                 (d.get("phone") as string) || "",
+            curp:                  (d.get("curp")  as string) || "",
+            birthDate:             d.get("birthDate"),
+            activistId:            (d.get("activistId")  as string)  || "",
+            communityId:           (d.get("communityId") as string)  || null,
+            credentialFrontUrl:    (d.get("credentialFrontUrl") as string) || null,
+            credentialBackUrl:     (d.get("credentialBackUrl")  as string) || null,
+            pendingCredentialFront: Boolean(d.get("pendingCredentialFront")),
+            pendingCredentialBack:  Boolean(d.get("pendingCredentialBack")),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, "es"))
+      );
+      setHasRun(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const memberById    = useMemo(() => new Map(members.map((m)    => [m.id, m.name])), [members]);
+  const communityById = useMemo(() => new Map(communities.map((c) => [c.id, c.name])), [communities]);
 
   const filtered = useMemo(() => {
     const text = searchText.trim().toLowerCase();
     return promoted.filter((p) => {
       if (text && !p.name.toLowerCase().includes(text) && !p.curp.toLowerCase().includes(text))
         return false;
-      if (activistFilter && p.activistId !== activistFilter) return false;
+      if (activistFilter  && p.activistId  !== activistFilter)  return false;
       if (communityFilter && p.communityId !== communityFilter) return false;
       if (credentialFilter !== "all" && getCredentialStatus(p) !== credentialFilter) return false;
       return true;
     });
   }, [promoted, searchText, activistFilter, communityFilter, credentialFilter]);
 
-  function exportCsv() {
-    const rows = [
+  function handleExport() {
+    exportToCsv(
+      `credenciales_${new Date().toISOString().slice(0, 10)}`,
       ["Nombre", "CURP", "Teléfono", "Activista", "Comunidad", "Credencial"],
-      ...filtered.map((p) => [
+      filtered.map((p) => [
         p.name,
         p.curp,
         p.phone,
         memberById.get(p.activistId) ?? "",
         p.communityId ? (communityById.get(p.communityId) ?? "") : "",
         CREDENTIAL_LABELS[getCredentialStatus(p)],
-      ]),
-    ];
-    const csv  = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `credenciales_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+      ])
+    );
   }
 
   if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight">Credenciales de Promovidos</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Verifica el estado de las credenciales INE de todos los promovidos. Haz clic en un registro para ver la foto.
-        </p>
-      </header>
+    <>
+      <ReportShell
+        title="Credenciales de Promovidos"
+        description="Verifica el estado de las credenciales INE. Usa el botón Ver para consultar las fotos."
+        filters={
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="block text-sm font-medium text-slate-700">
+              Buscar
+              <input
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Nombre o CURP"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+              />
+            </label>
 
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+            <label className="block text-sm font-medium text-slate-700">
+              Activista
+              <select
+                value={activistFilter}
+                onChange={(e) => setActivistFilter(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+              >
+                <option value="">Todos</option>
+                {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
 
-      <article className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold">Listado</h3>
-            <p className="text-sm text-slate-600">
-              Filtra por activista, comunidad y estado de credencial.
-            </p>
+            <label className="block text-sm font-medium text-slate-700">
+              Comunidad
+              <select
+                value={communityFilter}
+                onChange={(e) => setCommunityFilter(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+              >
+                <option value="">Todas</option>
+                {communities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+
+            <label className="block text-sm font-medium text-slate-700">
+              Credencial
+              <select
+                value={credentialFilter}
+                onChange={(e) => setCredentialFilter(e.target.value as CredentialFilter)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
+              >
+                {(Object.keys(CREDENTIAL_LABELS) as CredentialFilter[]).map((k) => (
+                  <option key={k} value={k}>{CREDENTIAL_LABELS[k]}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {filtered.length} registros
-            </span>
-            <button
-              type="button"
-              onClick={exportCsv}
-              disabled={filtered.length === 0}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Exportar CSV
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="block text-sm font-medium text-slate-700">
-            Buscar
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Nombre o CURP"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
-            />
-          </label>
-
-          <label className="block text-sm font-medium text-slate-700">
-            Activista
-            <select
-              value={activistFilter}
-              onChange={(e) => setActivistFilter(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
-            >
-              <option value="">Todos</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-medium text-slate-700">
-            Comunidad
-            <select
-              value={communityFilter}
-              onChange={(e) => setCommunityFilter(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
-            >
-              <option value="">Todas</option>
-              {communities.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-medium text-slate-700">
-            Credencial
-            <select
-              value={credentialFilter}
-              onChange={(e) => setCredentialFilter(e.target.value as CredentialFilter)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-900"
-            >
-              {(Object.keys(CREDENTIAL_LABELS) as CredentialFilter[]).map((k) => (
-                <option key={k} value={k}>
-                  {CREDENTIAL_LABELS[k]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+        }
+        error={error}
+        onGenerate={() => void runReport()}
+        isLoading={isLoading}
+        hasRun={hasRun}
+        rowCount={filtered.length}
+        rowLabel={["promovido", "promovidos"]}
+        onExport={handleExport}
+      >
+        <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
@@ -260,32 +210,36 @@ export default function CredentialsPage() {
                 <th className="px-4 py-3 font-medium">Activista</th>
                 <th className="px-4 py-3 font-medium">Comunidad</th>
                 <th className="px-4 py-3 font-medium">Credencial</th>
+                <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
               {filtered.map((person) => (
-                <tr
-                  key={person.id}
-                  onClick={() => setSelected(person)}
-                  className="cursor-pointer hover:bg-slate-50"
-                >
+                <tr key={person.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium text-slate-900">{person.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-700">{person.curp}</td>
                   <td className="px-4 py-3 text-slate-700">{person.phone}</td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {memberById.get(person.activistId) ?? "—"}
-                  </td>
+                  <td className="px-4 py-3 text-slate-700">{memberById.get(person.activistId) ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-700">
                     {person.communityId ? (communityById.get(person.communityId) ?? "—") : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <CredentialBadge status={getCredentialStatus(person)} />
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelected(person)}
+                      className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Ver
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     Sin promovidos que coincidan con los filtros activos.
                   </td>
                 </tr>
@@ -293,15 +247,13 @@ export default function CredentialsPage() {
             </tbody>
           </table>
         </div>
-      </article>
+      </ReportShell>
 
       {selected && (
         <DetailModal
           person={selected}
           activistName={memberById.get(selected.activistId) ?? "—"}
-          communityName={
-            selected.communityId ? (communityById.get(selected.communityId) ?? "—") : "—"
-          }
+          communityName={selected.communityId ? (communityById.get(selected.communityId) ?? "—") : "—"}
           onClose={() => setSelected(null)}
           onZoom={setZoomUrl}
         />
@@ -325,7 +277,7 @@ export default function CredentialsPage() {
           </button>
         </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -360,16 +312,10 @@ type DetailModalProps = {
 };
 
 function DetailModal({ person, activistName, communityName, onClose, onZoom }: DetailModalProps) {
-  const frontStatus = person.credentialFrontUrl
-    ? "uploaded"
-    : person.pendingCredentialFront
-      ? "pending"
-      : "absent";
-  const backStatus = person.credentialBackUrl
-    ? "uploaded"
-    : person.pendingCredentialBack
-      ? "pending"
-      : "absent";
+  const frontStatus = person.credentialFrontUrl ? "uploaded"
+    : person.pendingCredentialFront ? "pending" : "absent";
+  const backStatus  = person.credentialBackUrl  ? "uploaded"
+    : person.pendingCredentialBack  ? "pending" : "absent";
 
   return (
     <div
@@ -392,31 +338,17 @@ function DetailModal({ person, activistName, communityName, onClose, onZoom }: D
 
         <div className="space-y-6 px-6 py-5">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <DataRow label="CURP" value={<span className="font-mono text-xs">{person.curp}</span>} />
-            <DataRow label="Teléfono" value={person.phone} />
+            <DataRow label="CURP"               value={<span className="font-mono text-xs">{person.curp}</span>} />
+            <DataRow label="Teléfono"            value={person.phone} />
             <DataRow label="Fecha de nacimiento" value={fmtBirthDate(person.birthDate)} />
-            <DataRow label="Comunidad" value={communityName} />
-            <DataRow label="Activista" value={activistName} />
+            <DataRow label="Comunidad"           value={communityName} />
+            <DataRow label="Activista"           value={activistName} />
           </div>
 
           <div className="space-y-4">
             <p className="text-sm font-semibold text-slate-700">Credencial (INE)</p>
-
-            <CredentialSection
-              label="Frente"
-              status={frontStatus}
-              imageUrl={person.credentialFrontUrl}
-              altText="Frente de credencial"
-              onZoom={onZoom}
-            />
-
-            <CredentialSection
-              label="Reverso"
-              status={backStatus}
-              imageUrl={person.credentialBackUrl}
-              altText="Reverso de credencial"
-              onZoom={onZoom}
-            />
+            <CredentialSection label="Frente"  status={frontStatus} imageUrl={person.credentialFrontUrl} altText="Frente de credencial"  onZoom={onZoom} />
+            <CredentialSection label="Reverso" status={backStatus}  imageUrl={person.credentialBackUrl}  altText="Reverso de credencial" onZoom={onZoom} />
           </div>
         </div>
       </div>
