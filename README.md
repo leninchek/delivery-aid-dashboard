@@ -128,8 +128,6 @@ Los permisos de la App son dinámicos y se configuran por nivel en **Administrac
 | `can_create_direct_delivery` | Registrar entrega interna |
 | `can_create_indirect_delivery` | Registrar entrega externa |
 | `can_register_promoted` | Dar de alta promovidos |
-| `can_view_own_deliveries` | Ver propias entregas |
-| `can_view_own_promoted` | Ver propios promovidos |
 | `can_edit_own_promoted` | Editar propios promovidos |
 | `can_delete_own_promoted` | Eliminar propios promovidos |
 | `can_view_notifications` | Ver notificaciones |
@@ -219,10 +217,12 @@ Poblan datos maestros en Firestore. Ejecutar siempre en orden:
 | Orden | Comando | Descripción |
 |---|---|---|
 | 1 | `npm run seed:org-levels` | Niveles organizacionales base |
-| 2 | `npm run seed:direct-delivery-types` | Tipos de entrega directa |
-| 3 | `npm run seed:cities` | Municipios de Quintana Roo |
-| 4 | `npm run seed:communities` | Comunidades de Felipe Carrillo Puerto |
-| 5 | `npm run seed:aid-types` | Tipos de apoyo comunes |
+| 2 | `npm run seed:org-members` | Miembros organizacionales iniciales |
+| 3 | `npm run seed:direct-delivery-types` | Tipos de entrega directa |
+| 4 | `npm run seed:cities` | Municipios de Quintana Roo |
+| 5 | `npm run seed:communities` | Comunidades de Felipe Carrillo Puerto |
+| 6 | `npm run seed:aid-types` | Tipos de apoyo comunes |
+| 7 | `npm run seed:authorities` | Autoridades municipales |
 
 Para ejecutar todos en una sola operación:
 
@@ -235,6 +235,8 @@ Cada seed tiene modo `dry-run` para verificar sin escribir:
 ```bash
 npm run seed:cities:dry
 npm run seed:direct-delivery-types:dry
+npm run seed:org-members:dry
+npm run seed:authorities:dry
 ```
 
 Los seeds son idempotentes: omiten registros que ya existen por nombre o código.

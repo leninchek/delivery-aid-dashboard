@@ -96,9 +96,9 @@ Asignación territorial por nivel:
 |---|---|---|---|
 | 1 | Coordinador General | false | [] |
 | 2 | Distrital | false | [] |
-| 3 | Coordinador | true | [can_create_direct_delivery, can_create_indirect_delivery, can_view_branch_structure, can_view_own_deliveries] |
-| 4 | Seccional | true | [can_create_direct_delivery, can_create_indirect_delivery, can_view_branch_structure, can_view_own_deliveries] |
-| 5 | Activista | true | [can_create_direct_delivery, can_register_promoted, can_create_indirect_delivery, can_view_own_deliveries] |
+| 3 | Coordinador | true | [can_create_direct_delivery, can_create_indirect_delivery] |
+| 4 | Seccional | true | [can_create_direct_delivery, can_create_indirect_delivery] |
+| 5 | Activista | true | [can_create_direct_delivery, can_register_promoted, can_create_indirect_delivery, can_edit_own_promoted, can_delete_own_promoted, can_view_notifications] |
 
 > Nota: este seed es inicial. El acceso App no está limitado a estos tres niveles; cualquier nivel nuevo puede habilitarse con `canUseApp = true`.
 > Las capacidades pueden modificarse sin cambiar código: agregar/remover permisos operativos por nivel de forma dinámica.
@@ -490,8 +490,9 @@ Reglas mínimas del endpoint:
   - `can_create_direct_delivery` — Registrar entregas directas (Coordinador→Seccional, Seccional→Activista, Activista→Promovido)
   - `can_register_promoted` — Dar de alta nuevos promovidos/beneficiarios (solo niveles que atienden `Promovido`, inicialmente Activista)
   - `can_create_indirect_delivery` — Registrar entregas indirectas (beneficiario libre)
-  - `can_view_branch_structure` — Ver el organigrama de su rama jerárquica
-  - `can_view_own_deliveries` — Ver entregas registradas por el usuario
+  - `can_edit_own_promoted` — Editar promovidos propios
+  - `can_delete_own_promoted` — Eliminar promovidos propios
+  - `can_view_notifications` — Ver notificaciones push recibidas
 - Reglas operativas de selección en entrega directa:
   - Coordinador solo puede seleccionar un Seccional bajo su cargo.
   - Seccional solo puede seleccionar un Activista bajo su cargo.
