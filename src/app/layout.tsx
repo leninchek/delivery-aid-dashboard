@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Entrega de Apoyos - Back Office",
+  title: "Cuenta Conmigo - Back Office",
   description: "Panel de administración para catálogos, organigrama y operaciones.",
   icons: {
     icon: [

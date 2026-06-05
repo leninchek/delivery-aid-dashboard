@@ -155,7 +155,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-              Entrega de Apoyos
+              Cuenta Conmigo
             </p>
             <h1 className="mt-2 text-2xl font-semibold text-slate-900">Back Office</h1>
           </div>

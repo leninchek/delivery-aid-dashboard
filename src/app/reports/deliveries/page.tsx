@@ -352,7 +352,7 @@ export default function DeliveriesReportPage() {
         <div>
           <h3 className="text-base font-semibold text-slate-900">Historial por CURP</h3>
           <p className="mt-0.5 text-sm text-slate-500">
-            Consulta todos los apoyos recibidos por una persona, sin importar si fue entrega interna o externa.
+            Consulta todas las entregas recibidas por una persona, sin importar si fue entrega interna o externa.
           </p>
         </div>
         <div className="flex gap-3">

@@ -378,7 +378,7 @@ export default function AppUsersPage() {
                 El usuario deberá cambiarla en su primer inicio de sesión.
               </p>
               <a
-                href={`https://wa.me/52${banner.phone}?text=${encodeURIComponent(`Hola, tu cuenta en Entrega de Apoyos ha sido creada.\nTeléfono: ${banner.phone}\nContraseña temporal: ${banner.tempPassword}\nCámbiala en tu primer inicio de sesión.`)}`}
+                href={`https://wa.me/52${banner.phone}?text=${encodeURIComponent(`Hola, tu acceso a Cuenta Conmigo ha sido creado.\nTeléfono: ${banner.phone}\nContraseña temporal: ${banner.tempPassword}\nCámbiala en tu primer inicio de sesión.`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1ebe5d]"

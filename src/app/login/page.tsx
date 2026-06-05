@@ -56,7 +56,7 @@ export default function LoginPage() {
     <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-          Entrega de Apoyos
+          Cuenta Conmigo
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
           Iniciar sesión
@@ -74,7 +74,7 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none ring-0 transition focus:border-slate-900"
-            placeholder="admin@entregadeapoyos.com"
+            placeholder="admin@cuentaconmigo.com"
             required
           />
         </label>

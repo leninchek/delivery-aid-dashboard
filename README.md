@@ -267,13 +267,26 @@ npm run test:e2e:headed
 npm run build
 ```
 
-Genera la carpeta `out/` con el export estático. Luego desplegar desde la raíz del workspace:
+Genera la carpeta `out/` con el export estático. Luego desplegar desde la **raíz del workspace**:
 
 ```bash
+# Desplegar a producción (por defecto)
 firebase deploy --only hosting
+
+# Desplegar a QA
+firebase deploy -P qa --only hosting
 ```
 
 > Al ser export estático, las API routes de Next.js **no están disponibles en producción**. Todas las operaciones privilegiadas se ejecutan a través de **Cloud Functions** (`Delivery-Aid-CloudFunctions`).
+
+### Ambientes Firebase
+
+| Alias | Proyecto Firebase | Uso |
+|---|---|---|
+| `default` / `production` | `delivery-aid` | Producción |
+| `qa` | `delivery-aid-qa` | Pruebas / desarrollo |
+
+La configuración de ambientes está en `.firebaserc` en la raíz del workspace.
 
 ---
 
