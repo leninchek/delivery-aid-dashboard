@@ -1,6 +1,6 @@
-# Delivery Aid — Back Office
+# Cuenta Conmigo — Back Office
 
-Panel web de administración para el sistema de gestión, distribución y trazabilidad de apoyos sociales. Permite registrar entregas, administrar catálogos y organigrama, gestionar accesos a la App Android y generar reportes.
+Panel web de administración del programa **Cuenta Conmigo** (Chema Chacón). Permite administrar catálogos, organigrama, accesos a la App Android, reportes de entregas y campañas de notificaciones push.
 
 ---
 
@@ -227,7 +227,11 @@ Poblan datos maestros en Firestore. Ejecutar siempre en orden:
 Para ejecutar todos en una sola operación:
 
 ```bash
+# Producción
 npm run seed:all
+
+# QA — apunta al proyecto delivery-aid-qa
+DOTENV_CONFIG_PATH=.env.qa npm run seed:all
 ```
 
 Cada seed tiene modo `dry-run` para verificar sin escribir:
