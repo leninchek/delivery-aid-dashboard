@@ -261,30 +261,48 @@ npm run test:e2e:headed
 
 ---
 
+## Variables de entorno
+
+| Archivo | Uso | Commiteado |
+|---|---|---|
+| `.env` | Producción — Firebase `delivery-aid` + URLs de Cloud Functions | No |
+| `.env.qa` | QA — Firebase `delivery-aid-qa` + URLs de Cloud Functions QA | No |
+| `.env.example` | Plantilla con todas las variables necesarias | Sí |
+
+> No existe `.env.local`. Toda la config de producción está en `.env`.
+
 ## Build y despliegue
-
-```bash
-npm run build
-```
-
-Genera la carpeta `out/` con el export estático. Luego desplegar desde la **raíz del workspace**:
-
-```bash
-# Desplegar a producción (por defecto)
-firebase deploy --only hosting
-
-# Desplegar a QA
-firebase deploy -P qa --only hosting
-```
 
 > Al ser export estático, las API routes de Next.js **no están disponibles en producción**. Todas las operaciones privilegiadas se ejecutan a través de **Cloud Functions** (`Delivery-Aid-CloudFunctions`).
 
+### Producción
+
+```bash
+# Desde Delivery-Aid-BackOffice/
+npm run build
+
+# Desde la raíz del workspace
+firebase deploy --only hosting --project production
+```
+
+### QA
+
+El build de QA requiere activar `.env.qa` temporalmente — tiene prioridad sobre `.env`:
+
+```bash
+# Desde Delivery-Aid-BackOffice/
+cp .env.qa .env.production.local && npm run build && rm .env.production.local
+
+# Desde la raíz del workspace
+firebase deploy --only hosting --project qa
+```
+
 ### Ambientes Firebase
 
-| Alias | Proyecto Firebase | Uso |
-|---|---|---|
-| `default` / `production` | `delivery-aid` | Producción |
-| `qa` | `delivery-aid-qa` | Pruebas / desarrollo |
+| Alias | Proyecto Firebase | URL | Uso |
+|---|---|---|---|
+| `production` | `delivery-aid` | `cuentaconmigo.chemachacon.com.mx` | Producción |
+| `qa` | `delivery-aid-qa` | `delivery-aid-qa.web.app` | Pruebas |
 
 La configuración de ambientes está en `.firebaserc` en la raíz del workspace.
 
