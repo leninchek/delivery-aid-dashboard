@@ -247,6 +247,30 @@ Los seeds son idempotentes: omiten registros que ya existen por nombre o código
 
 ---
 
+## Bootstrap del primer admin
+
+Ningún seed ni el propio Back Office pueden crear la primera cuenta de administrador —
+`/admin/users` requiere ya estar autenticado como `admin` (usa las Cloud Functions
+`createBackofficeUser`/`updateBackofficeUser`). Para el arranque en un proyecto nuevo:
+
+```bash
+# Producción
+npm run bootstrap:admin -- --email="admin@ejemplo.com" --password="unaContraseñaSegura" --name="Nombre Apellido"
+
+# QA — apunta al proyecto delivery-aid-qa
+DOTENV_CONFIG_PATH=.env.qa npm run bootstrap:admin -- --email="..." --password="..." --name="..."
+
+# Verificar sin escribir
+npm run bootstrap:admin -- --dry-run --email="..." --password="..." --name="..."
+```
+
+También acepta `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` / `BOOTSTRAP_ADMIN_NAME`
+como variables de entorno en vez de flags (útil para no dejar la contraseña en el historial
+de la shell). Es idempotente: si el correo ya tiene cuenta de Auth, no toca la contraseña y
+solo asegura `SystemUsers.backofficeRole = "admin"` y `active = true`.
+
+---
+
 ## Pruebas E2E
 
 ```bash

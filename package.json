@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "seed:org-levels": "tsx scripts/seed-org-levels.ts",
     "seed:org-levels:dry": "tsx scripts/seed-org-levels.ts --dry-run",
     "seed:org-members": "tsx scripts/seed-org-members.ts",
