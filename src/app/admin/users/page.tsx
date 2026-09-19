@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { PermissionGuard } from "@/components/auth/permission-guard";
 import { FormInput } from "@/components/form/FormInput";
 import { FormSelect } from "@/components/form/FormSelect";
 import { getFirestoreDb } from "@/lib/firebase";
-import { apiFetch } from "@/lib/api-fetch";
 import { showToast } from "@/hooks/useToast";
 import type { BackofficeUser, CreateBackofficeUserPayload, UpdateBackofficeUserPayload } from "@/types/backoffice-user";
 
@@ -97,13 +97,24 @@ function AdminUsersContent() {
     setIsSaving(true);
     setError(null);
     try {
+      const endpoint = process.env.NEXT_PUBLIC_CREATE_BACKOFFICE_USER_URL;
+      if (!endpoint) { setError("Falta NEXT_PUBLIC_CREATE_BACKOFFICE_USER_URL."); return; }
+
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) { setError("No autenticado."); return; }
+      const idToken = await currentUser.getIdToken();
+
       const payload: CreateBackofficeUserPayload = {
         email:    createForm.email.trim().toLowerCase(),
         password: createForm.password,
         name:     createForm.name.trim(),
         roleId:   createForm.roleId,
       };
-      const res  = await apiFetch("/api/backoffice-users/create", { method: "POST", body: JSON.stringify(payload) });
+      const res  = await fetch(endpoint, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body:    JSON.stringify(payload),
+      });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) { setError(data.error ?? "Error al crear el usuario."); return; }
       showToast("Usuario creado correctamente.");
@@ -121,13 +132,24 @@ function AdminUsersContent() {
     setIsSaving(true);
     setError(null);
     try {
+      const endpoint = process.env.NEXT_PUBLIC_UPDATE_BACKOFFICE_USER_URL;
+      if (!endpoint) { setError("Falta NEXT_PUBLIC_UPDATE_BACKOFFICE_USER_URL."); return; }
+
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) { setError("No autenticado."); return; }
+      const idToken = await currentUser.getIdToken();
+
       const payload: UpdateBackofficeUserPayload = {
         uid:    editingUser.uid,
         name:   editForm.name.trim() || undefined,
         roleId: editForm.roleId      || undefined,
         active: editForm.active,
       };
-      const res  = await apiFetch("/api/backoffice-users/update", { method: "PATCH", body: JSON.stringify(payload) });
+      const res  = await fetch(endpoint, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body:    JSON.stringify(payload),
+      });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) { setError(data.error ?? "Error al actualizar."); return; }
       showToast("Usuario actualizado.");
