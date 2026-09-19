@@ -44,6 +44,11 @@ const aidTypeSeeds: AidTypeSeed[] = [
   { name: "Colchón",                unit: "pieza",   active: true },
   { name: "Cobija",                 unit: "pieza",   active: true },
   { name: "Balón",                  unit: "pieza",   active: true },
+  // Detectados en concentrado "C APOYOS BIENESTAR 2025-2026" (ROTOPLAS SUBSIDIO JUNIO 2025.xlsx)
+  { name: "Bastón",                 unit: "pieza",   active: true },
+  { name: "Andadera",               unit: "pieza",   active: true },
+  { name: "Pintura",                unit: "pieza",   active: true },
+  { name: "Estufa",                 unit: "pieza",   active: true },
 ];
 
 function hasArg(flag: string) {
