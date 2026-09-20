@@ -344,6 +344,8 @@ La configuración de ambientes está en `.firebaserc` en la raíz del workspace.
 | `importUsers` | POST | Importar usuarios App desde CSV (máx. 500 filas) |
 | `resetAppUserPassword` | POST | Generar contraseña temporal para cuenta App |
 | `toggleAppUserStatus` | POST | Activar o desactivar cuenta App |
+| `createBackofficeUser` | POST | Crear cuenta con acceso a este panel (admin o rol de `BackofficeRoles`) |
+| `updateBackofficeUser` | POST | Actualizar nombre, rol o estado de una cuenta Back Office |
 | `sendPushCampaign` | POST | Enviar campaña de notificaciones push |
 
 Todas las funciones requieren un token `Bearer` de un usuario Back Office con rol `admin`.
