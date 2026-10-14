@@ -117,7 +117,7 @@ Configuración y acceso al sistema.
 | Gestionar roles / usuarios BO | ✅ | — | — |
 | Enviar campañas push | ✅ | — | — |
 
-Los roles se almacenan en `BackofficeRoles` (Firestore) y se asignan desde **Administración → Roles y Permisos**. El rol `admin` es fijo y no editable desde el panel.
+Los roles se almacenan en `BackofficeRoles` (Firestore) y se asignan desde **Administración → Roles y Permisos**. El rol `admin` es fijo y no editable desde el panel. `supervisor` y `data_entry` se pueden crear con `npm run seed:backoffice-roles` (ver [Seed scripts](#seed-scripts)) en vez de crearlos a mano.
 
 ### Capacidades dinámicas (App Android)
 
@@ -216,13 +216,14 @@ Poblan datos maestros en Firestore. Ejecutar siempre en orden:
 
 | Orden | Comando | Descripción |
 |---|---|---|
-| 1 | `npm run seed:org-levels` | Niveles organizacionales base |
-| 2 | `npm run seed:org-members` | Miembros organizacionales iniciales |
-| 3 | `npm run seed:direct-delivery-types` | Tipos de entrega directa |
-| 4 | `npm run seed:cities` | Municipios de Quintana Roo |
-| 5 | `npm run seed:communities` | Comunidades de Felipe Carrillo Puerto |
-| 6 | `npm run seed:aid-types` | Tipos de apoyo comunes |
-| 7 | `npm run seed:authorities` | Autoridades municipales |
+| 1 | `npm run seed:backoffice-roles` | Roles Back Office base (`supervisor`, `data_entry`/Capturista — `admin` es fijo, no es un seed) |
+| 2 | `npm run seed:org-levels` | Niveles organizacionales base |
+| 3 | `npm run seed:org-members` | Miembros organizacionales iniciales |
+| 4 | `npm run seed:direct-delivery-types` | Tipos de entrega directa |
+| 5 | `npm run seed:cities` | Municipios de Quintana Roo |
+| 6 | `npm run seed:communities` | Comunidades de Felipe Carrillo Puerto |
+| 7 | `npm run seed:aid-types` | Tipos de apoyo comunes |
+| 8 | `npm run seed:authorities` | Autoridades municipales |
 
 Para ejecutar todos en una sola operación:
 
