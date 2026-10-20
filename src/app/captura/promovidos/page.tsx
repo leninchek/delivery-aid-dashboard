@@ -16,9 +16,7 @@ import { formatDateInput } from "@/lib/utils";
 import { fmtBirthDate } from "@/lib/report-utils";
 import { validateAuthority } from "@/utils/validators";
 import { uploadEvidenceFile } from "@/utils/storage-upload";
-import type { OrgMember, Community, OrgLevel } from "@/types/shared";
-
-const ACTIVIST_LEVEL_NAME = "Activista";
+import type { OrgMember, Community } from "@/types/shared";
 
 type PromovidoForm = {
   name: string;
@@ -60,7 +58,6 @@ function PromovidosCaptureContent() {
   const [promovidos,   setPromovidos]   = useState<Promovido[]>([]);
   const [orgMembers,   setOrgMembers]   = useState<OrgMember[]>([]);
   const [communities,  setCommunities]  = useState<Community[]>([]);
-  const [levels,       setLevels]       = useState<OrgLevel[]>([]);
   const [form,         setForm]         = useState<PromovidoForm>(defaultForm);
   const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
   const [error,        setError]        = useState<string | null>(null);
@@ -120,35 +117,11 @@ function PromovidosCaptureContent() {
       })))
     );
 
-    const u4 = onSnapshot(
-      query(collection(db, "OrgLevels"), orderBy("rank", "asc")),
-      (snap) => setLevels(snap.docs.map((d) => ({
-        id:           d.id,
-        name:         d.get("name")         || "",
-        rank:         d.get("rank")         || 0,
-        canUseApp:    d.get("canUseApp")    ?? false,
-        capabilities: d.get("capabilities") || [],
-        active:       d.get("active")       ?? true,
-      })))
-    );
-
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u3(); };
   }, []);
 
   const memberMap    = useMemo(() => new Map(orgMembers.map((m) => [m.id, m])),     [orgMembers]);
   const communityMap = useMemo(() => new Map(communities.map((c) => [c.id, c])),    [communities]);
-
-  // El "activista" dueño de un promovido debe ser nivel Activista -- si no se
-  // filtra, se puede asignar por error a cualquier miembro del organigrama,
-  // rompiendo el flujo de "Activista a Promovido" en Captura Interna.
-  const activistLevelId = useMemo(
-    () => levels.find((l) => l.name === ACTIVIST_LEVEL_NAME)?.id,
-    [levels]
-  );
-  const activistOptions = useMemo(
-    () => activistLevelId ? orgMembers.filter((m) => m.levelId === activistLevelId) : [],
-    [orgMembers, activistLevelId]
-  );
 
   const filteredPromovidos = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -373,17 +346,10 @@ function PromovidosCaptureContent() {
               label="Activista"
               value={form.activistId}
               onChange={(v) => setField("activistId", v)}
-              error={
-                fieldErrors.activistId ??
-                (activistLevelId && activistOptions.length === 0
-                  ? "No hay miembros de nivel Activista registrados todavía."
-                  : undefined)
-              }
+              error={fieldErrors.activistId}
             >
-              <option value="">
-                {activistOptions.length === 0 ? "Sin activistas disponibles" : "Selecciona un activista"}
-              </option>
-              {activistOptions.map((m) => (
+              <option value="">Selecciona un activista</option>
+              {orgMembers.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </FormSelect>
