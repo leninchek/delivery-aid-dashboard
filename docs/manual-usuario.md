@@ -98,35 +98,40 @@ sistema te va a avisar que no tiene nada configurado — es un nivel que solo su
 
 | Rol | Para qué es | Qué puede hacer |
 |---|---|---|
-| **Administrador** | Dueño del sistema | Todo: captura, catálogos, reportes, cuentas, roles |
-| **Supervisor** | Dar seguimiento al avance | Solo ver Reportes |
-| **Capturista** | Trabajo de campo diario | Captura (entregas, promovidos) y Catálogos |
+| **Administrador** | Dueño del sistema | Todo lo operativo (captura, catálogos, reportes) más configurar el sistema (cuentas, roles, niveles, campañas push) |
+| **Supervisor** | Supervisión operativa | Todo lo operativo: captura, catálogos y reportes — igual que Administrador, pero sin configurar el sistema |
+| **Capturista** | Trabajo de campo diario | Captura (entregas, promovidos) y Catálogos, sin Reportes |
+
+En el Back Office hay pocas personas, de confianza, a diferencia de la App (más operativa) —
+por eso Supervisor no está limitado a solo mirar: puede corregir datos y capturar si hace
+falta, no solo generar reportes.
 
 ---
 
 ## 2. Captura
+
+**Acceso:** Capturista, Supervisor y Administrador.
 
 ### 2.1 Registrar una Entrega Interna
 
 **Ruta:** Captura → Entrega Interna
 
 1. En **Entrega**, elige quién está distribuyendo el apoyo (cualquier miembro del
-   organigrama).
-2. Si esa persona tiene más de un tipo de entrega posible según su nivel, aparecerá el campo
-   **Tipo de entrega** — elige el que corresponda. Si solo hay un tipo posible, se aplica solo
-   y no verás este campo.
-   - Si en vez de eso aparece el aviso **"Este miembro no tiene tipos de entrega configurados
-     para su nivel"**, significa que elegiste a alguien de nivel Coordinador General o
-     Distrital — esos niveles no entregan directamente. Elige a otra persona.
-3. En **Recibe**, elige al destinatario:
-   - Si el tipo de entrega es "Activista a Promovido", busca al promovido por nombre o CURP.
-     Solo aparecerán los promovidos que pertenecen a la persona que elegiste en "Entrega".
-   - Para cualquier otro tipo, elige entre los subordinados directos de esa persona.
-4. Elige el **Tipo de apoyo** y la **Cantidad**.
-5. El comentario es opcional.
-6. La foto de evidencia es opcional — puedes subir cualquier formato de imagen (PNG, HEIC,
+   organigrama). El sistema detecta automáticamente qué puede entregar esa persona según su
+   nivel — no tienes que indicarlo tú.
+   - Si aparece el aviso **"Este miembro no tiene tipos de entrega configurados para su
+     nivel"**, significa que elegiste a alguien de nivel Coordinador General o Distrital —
+     esos niveles solo supervisan, no entregan directamente. Elige a otra persona (ver
+     [la cadena organizacional](#la-cadena-organizacional)).
+2. En **Recibe**, elige al destinatario. Lo que veas aquí depende de a quién elegiste en
+   "Entrega":
+   - Si es un **Activista**, buscas entre sus propios promovidos por nombre o CURP.
+   - Si es Coordinador o Seccional, eliges entre sus subordinados directos en el organigrama.
+3. Elige el **Tipo de apoyo** y la **Cantidad**.
+4. El comentario es opcional.
+5. La foto de evidencia es opcional — puedes subir cualquier formato de imagen (PNG, HEIC,
    JPEG), el sistema la convierte automáticamente.
-7. Pulsa **Registrar entrega**.
+6. Pulsa **Registrar entrega**.
 
 > **Si no encuentras a un promovido esperado:** revisa que el "Activista" que se le asignó al
 > crear ese promovido (en [Captura → Promovidos](#23-dar-de-alta-y-editar-promovidos)) sea
@@ -169,6 +174,8 @@ conserva la que ya tenía. Pulsa **Cancelar** para salir sin guardar.
 ---
 
 ## 3. Catálogos
+
+**Acceso:** Capturista, Supervisor y Administrador.
 
 ### 3.1 Miembros Organizacionales
 
