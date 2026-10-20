@@ -116,7 +116,7 @@ Asignación territorial por nivel:
 | `birthDate` | date — obligatorio |
 | `levelId` | ref → `OrgLevels` |
 | `parentId` | uid \| null |
-| `path` | uid[] — árbol completo para queries |
+| `path` | uid[] — ver convenio exacto abajo |
 | `assignment.cityId` | string \| null |
 | `assignment.communityId` | string \| null |
 | `assignment.routeId` | string \| null |
@@ -124,6 +124,24 @@ Asignación territorial por nivel:
 | `active` | bool |
 | `createdAt` | timestamp |
 | `updatedAt` | timestamp |
+
+> **Convenio de `path` (importante, fuente de un bug real en 2026-10):** `path` es la lista de
+> ids de los **ancestros** de un miembro, desde la raíz hasta su **padre directo** (inclusive).
+> **Nunca incluye el id del propio miembro.** Para un miembro raíz (`parentId == null`),
+> `path = []`. Para calcular el `path` de un hijo nuevo: `path = [...parentPath, parentId]`
+> (donde `parentPath` es el `path` ya guardado del padre) — **no** `[...parentPath,
+> ownId]`. Esto es lo que ya hacen `organization/members` (Back Office) y
+> `seed-org-members.ts`; `createAppUser`/`importUsers` (Cloud Functions) tenían el bug
+> contrario (agregaban el id propio en vez del del padre, perdiendo al padre directo de la
+> cadena) hasta que se corrigió. Antes de escribir nuevo código que calcule o lea `path`,
+> verificar este convenio contra datos reales, no asumirlo solo leyendo un fragmento de código
+> aislado — fue exactamente así como se originó el bug.
+>
+> Consumidores que dependen de este convenio: `eligibleRecipients` en Captura Interna
+> (`path.includes(fromOrgId)`), la cascada de reasignación de superior en
+> `organization/members` (`path.includes(editingId)` + reemplazo de prefijo), y la App Android
+> (`FirestoreDirectDeliveryOptionsRepository.kt`: `.whereArrayContains("path",
+> currentOrgMemberId)`).
 
 ---
 
