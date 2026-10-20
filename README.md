@@ -55,35 +55,38 @@ Registro de entregas e información de campo.
 ### Reportes
 Consulta y exportación de datos operativos.
 
-| Ruta | Módulo |
-|---|---|
-| `/reports/charts` | Panel de Control (gráficas y métricas) |
-| `/reports/deliveries` | Reporte de Entregas |
-| `/reports/promoted` | Reporte de Promovidos |
-| `/reports/branch` | Reporte por Rama Organizacional |
-| `/reports/communities` | Reporte por Comunidad |
-| `/reports/activists` | Reporte por Activista |
-| `/reports/authorities` | Directorio de Autoridades |
-| `/reports/credentials` | Credenciales de Miembros |
+| Ruta | Módulo | Rol mínimo |
+|---|---|---|
+| `/reports/charts` | Panel de Control (gráficas y métricas) | `supervisor` |
+| `/reports/deliveries` | Reporte de Entregas | `supervisor` |
+| `/reports/promoted` | Reporte de Promovidos | `supervisor` |
+| `/reports/branch` | Reporte por Rama Organizacional | `supervisor` |
+| `/reports/communities` | Reporte por Comunidad | `supervisor` |
+| `/reports/activists` | Reporte por Activista | `supervisor` |
+| `/reports/authorities` | Directorio de Autoridades | `supervisor` |
+| `/reports/credentials` | Credenciales de Miembros | `supervisor` |
 
 ### Operación
-Gestión de cuentas de la App Android.
+Gestión de cuentas de la App Android. Requiere `admin` directamente — las Cloud
+Functions que usa (`createAppUser`, `resetAppUserPassword`, `toggleAppUserStatus`,
+`importUsers`) verifican `backofficeRole === "admin"` en el servidor, no un permiso
+granular, así que la UI no ofrece un rol intermedio aquí.
 
-| Ruta | Módulo |
-|---|---|
-| `/access/app-users` | Acceso App — crear, importar CSV, resetear contraseña, activar/desactivar |
+| Ruta | Módulo | Rol mínimo |
+|---|---|---|
+| `/access/app-users` | Acceso App — crear, importar CSV, resetear contraseña, activar/desactivar | `admin` |
 
 ### Catálogos
 Administración de catálogos del sistema.
 
-| Ruta | Módulo |
-|---|---|
-| `/organization/members` | Miembros Organizacionales (organigrama) |
-| `/catalogs/communities` | Comunidades |
-| `/catalogs/cities` | Ciudades |
-| `/catalogs/routes` | Rutas |
-| `/catalogs/aid-types` | Tipos de Apoyo |
-| `/catalogs/authorities` | Autoridades |
+| Ruta | Módulo | Rol mínimo |
+|---|---|---|
+| `/organization/members` | Miembros Organizacionales (organigrama) | `data_entry` |
+| `/catalogs/communities` | Comunidades | `data_entry` |
+| `/catalogs/cities` | Ciudades | `data_entry` |
+| `/catalogs/routes` | Rutas | `data_entry` |
+| `/catalogs/aid-types` | Tipos de Apoyo | `data_entry` |
+| `/catalogs/authorities` | Autoridades | `data_entry` |
 
 ### Administración
 Configuración y acceso al sistema.
