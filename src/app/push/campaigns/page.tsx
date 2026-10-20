@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import {
   addDoc,
   collection,
@@ -148,6 +149,14 @@ function NotificationPreview({ title, body }: { title: string; body: string }) {
 }
 
 export default function PushCampaignsPage() {
+  return (
+    <PermissionGuard permission="admin">
+      <PushCampaignsContent />
+    </PermissionGuard>
+  );
+}
+
+function PushCampaignsContent() {
   const { sessionUser } = useAuth();
 
   const [items, setItems] = useState<PushCampaign[]>([]);

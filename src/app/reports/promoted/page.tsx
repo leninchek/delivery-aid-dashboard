@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -62,6 +63,14 @@ function getCredentialStatus(frontUrl: unknown, pendingFront: unknown, pendingBa
 }
 
 export default function PromotedReportPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <PromotedReportContent />
+    </PermissionGuard>
+  );
+}
+
+function PromotedReportContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   setDoc, collection, onSnapshot, orderBy, query, serverTimestamp, updateDoc, doc, Timestamp,
@@ -43,6 +44,14 @@ type Promovido = {
 };
 
 export default function PromovidosCapturePage() {
+  return (
+    <PermissionGuard permission="capture">
+      <PromovidosCaptureContent />
+    </PermissionGuard>
+  );
+}
+
+function PromovidosCaptureContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

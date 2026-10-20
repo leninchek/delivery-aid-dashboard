@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -72,6 +73,14 @@ type DelivType = "both" | "direct" | "indirect";
 
 
 export default function DeliveriesReportPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <DeliveriesReportContent />
+    </PermissionGuard>
+  );
+}
+
+function DeliveriesReportContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -31,6 +32,14 @@ type Row = {
 };
 
 export default function ActivistsReportPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <ActivistsReportContent />
+    </PermissionGuard>
+  );
+}
+
+function ActivistsReportContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

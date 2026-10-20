@@ -37,7 +37,7 @@ const menuSections: MenuSection[] = [
   },
   {
     title:      "Operación",
-    permission: "operation",
+    permission: "admin",
     links: [
       { href: "/access/app-users", label: "Acceso App"    },
       { href: "/push/campaigns",   label: "Campañas Push" },

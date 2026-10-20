@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import {
   addDoc,
   collection,
@@ -78,6 +79,14 @@ function formatDateInput(value: unknown): string {
 }
 
 export default function OrgMembersPage() {
+  return (
+    <PermissionGuard permission="catalogs">
+      <OrgMembersContent />
+    </PermissionGuard>
+  );
+}
+
+function OrgMembersContent() {
   const [items, setItems] = useState<OrgMember[]>([]);
   const [levels, setLevels] = useState<OrgLevel[]>([]);
   const [cities, setCities] = useState<NamedEntity[]>([]);

@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -17,6 +18,14 @@ const AUTHORITY_SLOTS: { label: string; key: keyof Community }[] = [
 ];
 
 export default function AuthoritiesReportPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <AuthoritiesReportContent />
+    </PermissionGuard>
+  );
+}
+
+function AuthoritiesReportContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

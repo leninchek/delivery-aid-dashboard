@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +58,14 @@ type PasswordBanner = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AppUsersPage() {
+  return (
+    <PermissionGuard permission="admin">
+      <AppUsersContent />
+    </PermissionGuard>
+  );
+}
+
+function AppUsersContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

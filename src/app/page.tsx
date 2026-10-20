@@ -16,7 +16,6 @@ export default function Home() {
     if (p.includes("admin"))     { router.replace("/reports/charts");       return; }
     if (p.includes("capture"))   { router.replace("/captura/promovidos");  return; }
     if (p.includes("reports"))   { router.replace("/reports/charts");       return; }
-    if (p.includes("operation")) { router.replace("/access/app-users");     return; }
     if (p.includes("catalogs"))  { router.replace("/organization/members"); return; }
   }, [sessionUser, isLoading, router]);
 

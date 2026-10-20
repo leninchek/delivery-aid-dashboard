@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { FormInput } from "@/components/form/FormInput";
@@ -14,6 +15,14 @@ type RouteForm = { name: string; description: string };
 const defaultForm: RouteForm = { name: "", description: "" };
 
 export default function RoutesPage() {
+  return (
+    <PermissionGuard permission="catalogs">
+      <RoutesContent />
+    </PermissionGuard>
+  );
+}
+
+function RoutesContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 

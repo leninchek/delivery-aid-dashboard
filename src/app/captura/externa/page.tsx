@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   setDoc, collection, onSnapshot, orderBy, query, serverTimestamp, updateDoc, doc,
@@ -40,6 +41,14 @@ type RecentEntry = {
 };
 
 export default function EntregaExternaPage() {
+  return (
+    <PermissionGuard permission="capture">
+      <EntregaExternaContent />
+    </PermissionGuard>
+  );
+}
+
+function EntregaExternaContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

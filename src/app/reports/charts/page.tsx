@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import {
   Bar,
   BarChart,
@@ -57,6 +58,14 @@ function computeTrend(current: number, prev: number): number | null {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChartsPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <ChartsContent />
+    </PermissionGuard>
+  );
+}
+
+function ChartsContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 

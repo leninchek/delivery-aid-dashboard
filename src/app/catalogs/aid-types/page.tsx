@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { FormInput } from "@/components/form/FormInput";
@@ -16,6 +17,14 @@ type AidTypeForm = Pick<AidType, "name" | "unit" | "active">;
 const defaultForm: AidTypeForm = { name: "", unit: "pieza", active: true };
 
 export default function AidTypesPage() {
+  return (
+    <PermissionGuard permission="catalogs">
+      <AidTypesContent />
+    </PermissionGuard>
+  );
+}
+
+function AidTypesContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 

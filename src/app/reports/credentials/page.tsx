@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -40,6 +41,14 @@ const CREDENTIAL_LABELS: Record<CredentialFilter, string> = {
 };
 
 export default function CredentialsPage() {
+  return (
+    <PermissionGuard permission="reports">
+      <CredentialsContent />
+    </PermissionGuard>
+  );
+}
+
+function CredentialsContent() {
   const [members,     setMembers]     = useState<NamedEntity[]>([]);
   const [communities, setCommunities] = useState<NamedEntity[]>([]);
   const [promoted,    setPromoted]    = useState<PromotedPerson[]>([]);

@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useMemo } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { FormDateInput } from "@/components/form/FormDateInput";
@@ -24,6 +25,14 @@ const defaultForm: AuthorityForm = {
 };
 
 export default function AuthoritiesPage() {
+  return (
+    <PermissionGuard permission="catalogs">
+      <AuthoritiesContent />
+    </PermissionGuard>
+  );
+}
+
+function AuthoritiesContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 

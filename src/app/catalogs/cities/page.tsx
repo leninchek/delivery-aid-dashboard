@@ -1,5 +1,6 @@
 "use client";
 
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -24,6 +25,14 @@ const defaultForm: CityForm = {
 };
 
 export default function CitiesPage() {
+  return (
+    <PermissionGuard permission="catalogs">
+      <CitiesContent />
+    </PermissionGuard>
+  );
+}
+
+function CitiesContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars = getMissingFirebaseEnvVars();
 

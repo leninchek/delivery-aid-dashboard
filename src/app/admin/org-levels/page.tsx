@@ -1,12 +1,328 @@
 "use client";
 
 import { PermissionGuard } from "@/components/auth/permission-guard";
-import OrgLevelsContent from "@/app/catalogs/org-levels/page";
+import { MissingConfigNotice } from "@/components/config/missing-config-notice";
+import { FormInput } from "@/components/form/FormInput";
+import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { useCatalogCrud } from "@/hooks/useCatalogCrud";
+import { showToast } from "@/hooks/useToast";
+import { validateRequiredName } from "@/utils/validators";
+import type { OrgLevel } from "@/types/shared";
+
+type OrgLevelForm = {
+  name: string;
+  rank: number;
+  canUseApp: boolean;
+  capabilities: string[];
+  active: boolean;
+};
+
+const CAPABILITIES: { key: string; label: string }[] = [
+  { key: "can_create_direct_delivery",   label: "Registrar entrega interna" },
+  { key: "can_create_indirect_delivery", label: "Registrar entrega externa" },
+  { key: "can_register_promoted",        label: "Registrar promovidos" },
+  { key: "can_view_own_deliveries",      label: "Ver propias entregas" },
+  { key: "can_view_own_promoted",        label: "Ver propios promovidos" },
+  { key: "can_edit_own_promoted",        label: "Editar propios promovidos" },
+  { key: "can_delete_own_promoted",      label: "Eliminar propios promovidos" },
+  { key: "can_view_notifications",       label: "Ver notificaciones" },
+];
+
+const CAPABILITY_LABELS: Record<string, string> = Object.fromEntries(
+  CAPABILITIES.map(({ key, label }) => [key, label])
+);
+
+const defaultForm: OrgLevelForm = {
+  name: "",
+  rank: 1,
+  canUseApp: false,
+  capabilities: [],
+  active: true,
+};
 
 export default function AdminOrgLevelsPage() {
   return (
     <PermissionGuard permission="admin">
       <OrgLevelsContent />
     </PermissionGuard>
+  );
+}
+
+function OrgLevelsContent() {
+  const isConfigured = hasFirebaseConfig();
+  const missingVars = getMissingFirebaseEnvVars();
+
+  const {
+    items, form, setForm, editingId,
+    isSaving, error,
+    resetForm, startEdit, handleSubmit,
+  } = useCatalogCrud<OrgLevel, OrgLevelForm>({
+    collectionName: "OrgLevels",
+    orderByField: "rank",
+    defaultForm,
+    mapDocToItem: (item) => ({
+      id: item.id,
+      name: item.get("name") || "",
+      rank: item.get("rank") || 0,
+      canUseApp: Boolean(item.get("canUseApp")),
+      capabilities: item.get("capabilities") || [],
+      active: item.get("active") ?? true,
+    }),
+    mapItemToForm: (item) => ({
+      name: item.name,
+      rank: item.rank,
+      canUseApp: item.canUseApp,
+      capabilities: item.capabilities,
+      active: item.active,
+    }),
+    mapFormToFirestore: (f) => ({
+      name: f.name.trim(),
+      rank: Number(f.rank),
+      canUseApp: f.canUseApp,
+      capabilities: f.capabilities,
+      active: f.active,
+    }),
+    validate: (f) => validateRequiredName(f.name),
+    onSuccess: (action) => showToast(action === "delete" ? "Nivel eliminado." : "Guardado correctamente."),
+  });
+
+  function toggleCapability(key: string) {
+    setForm((c) => ({
+      ...c,
+      capabilities: c.capabilities.includes(key)
+        ? c.capabilities.filter((k) => k !== key)
+        : [...c.capabilities, key],
+    }));
+  }
+
+  if (!isConfigured) return <MissingConfigNotice missingVars={missingVars} />;
+
+  return (
+    <section className="space-y-8">
+      <header>
+        <h2 className="text-3xl font-semibold tracking-tight">Niveles Organizacionales</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Catálogo para administrar niveles y capacidades.
+        </p>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[1.1fr_0.9fr]">
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Listado</h3>
+              <p className="text-sm text-slate-600">Ordenado por rank ascendente.</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              {items.length} registros
+            </span>
+          </div>
+
+          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-200">
+            <div className="hidden md:block">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Rango</th>
+                    <th className="px-4 py-3 font-medium">Nombre</th>
+                    <th className="px-4 py-3 font-medium">App</th>
+                    <th className="px-4 py-3 font-medium">Capacidades</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="px-4 py-3 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={editingId === item.id ? "bg-slate-50" : ""}
+                    >
+                      <td className="px-4 py-3 text-slate-600">{item.rank}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
+                      <td className="px-4 py-3 text-slate-600">{item.canUseApp ? "Sí" : "No"}</td>
+                      <td className="px-4 py-3">
+                        {item.capabilities.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {item.capabilities.map((cap) => (
+                              <span
+                                key={cap}
+                                className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                              >
+                                {CAPABILITY_LABELS[cap] ?? cap}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">Sin capacidades</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${item.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          {item.active ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(item)}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {items.length === 0 && (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                        Aún no hay niveles organizacionales. Crea el primero.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="md:hidden space-y-2 p-4">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className={`rounded-lg border px-4 py-3 ${
+                    editingId === item.id ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-slate-900">{item.name}</h4>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${item.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          {item.active ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">Rango: {item.rank} · App: {item.canUseApp ? "Sí" : "No"}</p>
+                      {item.capabilities.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {item.capabilities.map((cap) => (
+                            <span key={cap} className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                              {CAPABILITY_LABELS[cap] ?? cap}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {items.length === 0 && (
+                <p className="text-center text-slate-500 py-8">No hay niveles cargados aún.</p>
+              )}
+            </div>
+          </div>
+        </article>
+
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">
+                {editingId ? "Editar nivel" : "Nuevo nivel"}
+              </h3>
+              <p className="text-sm text-slate-600">
+                Define acceso App y capacidades dinámicas por nivel.
+              </p>
+            </div>
+          </div>
+
+          <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
+            <FormInput
+              label="Nombre"
+              value={form.name}
+              onChange={(v) => setForm((c) => ({ ...c, name: v }))}
+              placeholder="Seccional"
+              required
+            />
+
+            <FormInput
+              label="Rango"
+              type="number"
+              value={String(form.rank)}
+              onChange={(v) => setForm((c) => ({ ...c, rank: Number(v) }))}
+              min={1}
+              required
+            />
+
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-slate-700">Capacidades</legend>
+              <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+                {CAPABILITIES.map(({ key, label }) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.capabilities.includes(key)}
+                      onChange={() => toggleCapability(key)}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                    />
+                    <span className="text-sm text-slate-700">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.canUseApp}
+                onChange={(e) => setForm((c) => ({ ...c, canUseApp: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Puede usar App
+            </label>
+
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm((c) => ({ ...c, active: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Activo
+            </label>
+
+            {error && (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {error}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {isSaving ? "Guardando..." : editingId ? "Actualizar nivel" : "Crear nivel"}
+              </button>
+            </div>
+          </form>
+        </article>
+      </div>
+    </section>
   );
 }
