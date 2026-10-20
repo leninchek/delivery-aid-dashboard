@@ -13,7 +13,6 @@ import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { showToast } from "@/hooks/useToast";
 import { formatDateInput } from "@/lib/utils";
-import { fmtBirthDate } from "@/lib/report-utils";
 import { validateAuthority } from "@/utils/validators";
 import { uploadEvidenceFile } from "@/utils/storage-upload";
 import type { OrgMember, Community } from "@/types/shared";
@@ -292,7 +291,6 @@ function PromovidosCaptureContent() {
                   <th className="px-4 py-3 font-medium">CURP</th>
                   <th className="px-4 py-3 font-medium">Activista</th>
                   <th className="px-4 py-3 font-medium">Comunidad</th>
-                  <th className="px-4 py-3 font-medium">Nacimiento</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -307,7 +305,6 @@ function PromovidosCaptureContent() {
                     <td className="px-4 py-3 text-slate-600">
                       {communityMap.get(p.communityId)?.name ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{fmtBirthDate(p.birthDate)}</td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -321,7 +318,7 @@ function PromovidosCaptureContent() {
                 ))}
                 {filteredPromovidos.length === 0 && (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
                       {search ? "Sin resultados para esa búsqueda." : "Aún no hay promovidos registrados."}
                     </td>
                   </tr>
