@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { validateMexicanPhone, validateCurp, validateBirthDate } from "@/utils/validators";
+import { showToast } from "@/hooks/useToast";
 
 type OrgLevel = {
   id: string;
@@ -387,11 +388,13 @@ function OrgMembersContent() {
     try {
       if (editingId) {
         await updateDoc(doc(firestoreDb, "OrgMembers", editingId), payload);
+        showToast("Miembro actualizado.");
       } else {
         await addDoc(collection(firestoreDb, "OrgMembers"), {
           ...payload,
           createdAt: serverTimestamp(),
         });
+        showToast("Miembro creado correctamente.");
       }
 
       resetForm();
@@ -433,6 +436,7 @@ function OrgMembersContent() {
 
     try {
       await deleteDoc(doc(firestoreDb, "OrgMembers", id));
+      showToast("Miembro eliminado.");
       if (editingId === id) {
         resetForm();
       }

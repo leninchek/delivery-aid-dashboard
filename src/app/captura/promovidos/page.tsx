@@ -63,6 +63,7 @@ function PromovidosCaptureContent() {
   const [error,        setError]        = useState<string | null>(null);
   const [isSaving,     setIsSaving]     = useState(false);
   const [search,       setSearch]       = useState("");
+  const [editingId,    setEditingId]    = useState<string | null>(null);
 
   const frontRef = useRef<HTMLInputElement | null>(null);
   const backRef  = useRef<HTMLInputElement | null>(null);
@@ -138,7 +139,26 @@ function PromovidosCaptureContent() {
   }
 
   function resetForm() {
+    setEditingId(null);
     setForm(defaultForm);
+    setFieldErrors({});
+    setError(null);
+    setFrontFile(null);
+    setBackFile(null);
+    if (frontRef.current) frontRef.current.value = "";
+    if (backRef.current) backRef.current.value = "";
+  }
+
+  function startEdit(p: Promovido) {
+    setEditingId(p.id);
+    setForm({
+      name:        p.name,
+      phone:       p.phone,
+      curp:        p.curp,
+      birthDate:   p.birthDate,
+      activistId:  p.activistId,
+      communityId: p.communityId,
+    });
     setFieldErrors({});
     setError(null);
     setFrontFile(null);
@@ -166,42 +186,58 @@ function PromovidosCaptureContent() {
     setError(null);
 
     try {
-      const id = crypto.randomUUID();
-      await setDoc(doc(db, "Promoted", id), {
-        name:                 form.name.trim(),
-        phone:                form.phone.trim(),
-        curp:                 form.curp.trim().toUpperCase(),
-        birthDate:            form.birthDate
-                                ? Timestamp.fromDate(new Date(form.birthDate + "T12:00:00"))
-                                : null,
-        activistId:           form.activistId,
-        communityId:          form.communityId,
-        active:               true,
-        source:               "backoffice",
-        createdAt:            serverTimestamp(),
-        pendingCredentialFront: !frontFile,
-        pendingCredentialBack:  !backFile,
-      });
+      const id = editingId ?? crypto.randomUUID();
+      const birthDateValue = form.birthDate
+        ? Timestamp.fromDate(new Date(form.birthDate + "T12:00:00"))
+        : null;
 
-      const updates: Record<string, string> = {};
+      if (editingId) {
+        await updateDoc(doc(db, "Promoted", id), {
+          name:        form.name.trim(),
+          phone:       form.phone.trim(),
+          curp:        form.curp.trim().toUpperCase(),
+          birthDate:   birthDateValue,
+          activistId:  form.activistId,
+          communityId: form.communityId,
+          updatedAt:   serverTimestamp(),
+        });
+      } else {
+        await setDoc(doc(db, "Promoted", id), {
+          name:                   form.name.trim(),
+          phone:                  form.phone.trim(),
+          curp:                   form.curp.trim().toUpperCase(),
+          birthDate:              birthDateValue,
+          activistId:             form.activistId,
+          communityId:            form.communityId,
+          active:                 true,
+          source:                 "backoffice",
+          createdAt:              serverTimestamp(),
+          pendingCredentialFront: !frontFile,
+          pendingCredentialBack:  !backFile,
+        });
+      }
+
+      const updates: Record<string, string | boolean> = {};
 
       if (frontFile) {
         const path = `org-members/${form.activistId}/promoted/${id}_front.jpg`;
         const url  = await uploadEvidenceFile(path, frontFile);
         updates.credentialFrontUrl = url;
+        updates.pendingCredentialFront = false;
       }
 
       if (backFile) {
         const path = `org-members/${form.activistId}/promoted/${id}_back.jpg`;
         const url  = await uploadEvidenceFile(path, backFile);
         updates.credentialBackUrl = url;
+        updates.pendingCredentialBack = false;
       }
 
       if (Object.keys(updates).length > 0) {
         await updateDoc(doc(db, "Promoted", id), updates);
       }
 
-      showToast("Promovido registrado correctamente.");
+      showToast(editingId ? "Promovido actualizado." : "Promovido registrado correctamente.");
       resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar.");
@@ -257,11 +293,12 @@ function PromovidosCaptureContent() {
                   <th className="px-4 py-3 font-medium">Activista</th>
                   <th className="px-4 py-3 font-medium">Comunidad</th>
                   <th className="px-4 py-3 font-medium">Nacimiento</th>
+                  <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
                 {filteredPromovidos.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className={editingId === p.id ? "bg-slate-50" : ""}>
                     <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.curp}</td>
                     <td className="px-4 py-3 text-slate-600">
@@ -271,11 +308,20 @@ function PromovidosCaptureContent() {
                       {communityMap.get(p.communityId)?.name ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{fmtBirthDate(p.birthDate)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(p)}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        Editar
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredPromovidos.length === 0 && (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
                       {search ? "Sin resultados para esa búsqueda." : "Aún no hay promovidos registrados."}
                     </td>
                   </tr>
@@ -287,7 +333,7 @@ function PromovidosCaptureContent() {
 
         {/* ── Formulario ── */}
         <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-6">
-          <h3 className="text-lg font-semibold">Nuevo promovido</h3>
+          <h3 className="text-lg font-semibold">{editingId ? "Editar promovido" : "Nuevo promovido"}</h3>
           <p className="mt-1 text-sm text-slate-600">Todos los campos marcados son obligatorios.</p>
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
@@ -370,7 +416,9 @@ function PromovidosCaptureContent() {
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
               <p className="text-sm font-medium text-slate-700">
                 Credencial de elector{" "}
-                <span className="text-xs font-normal text-slate-400">(opcional)</span>
+                <span className="text-xs font-normal text-slate-400">
+                  {editingId ? "(opcional — deja vacío para conservar la actual)" : "(opcional)"}
+                </span>
               </p>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -412,13 +460,24 @@ function PromovidosCaptureContent() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {isSaving ? "Guardando..." : "Registrar promovido"}
-            </button>
+            <div className="flex gap-3">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {isSaving ? "Guardando..." : editingId ? "Guardar cambios" : "Registrar promovido"}
+              </button>
+            </div>
           </form>
         </article>
 
