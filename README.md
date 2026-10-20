@@ -111,14 +111,20 @@ Configuración y acceso al sistema.
 
 | Acción | `admin` | `supervisor` | `data_entry` |
 |---|---|---|---|
-| Gestionar catálogos | ✅ | — | ✅ |
-| Gestionar miembros org | ✅ | — | ✅ |
-| Registrar entregas y promovidos | ✅ | — | ✅ |
+| Gestionar catálogos | ✅ | ✅ | ✅ |
+| Gestionar miembros org | ✅ | ✅ | ✅ |
+| Registrar entregas y promovidos | ✅ | ✅ | ✅ |
 | Ver reportes | ✅ | ✅ | — |
 | Gestionar cuentas App | ✅ | — | — |
 | Gestionar niveles org | ✅ | — | — |
 | Gestionar roles / usuarios BO | ✅ | — | — |
 | Enviar campañas push | ✅ | — | — |
+
+`supervisor` tiene acceso operativo completo (captura, catálogos, reportes) — la única
+diferencia con `admin` es que no configura el sistema (cuentas App, niveles organizacionales,
+roles/usuarios BO, campañas push). Decisión deliberada: el Back Office lo usan pocas personas
+de confianza, a diferencia de la App (más operativa), así que no tiene sentido limitarlo a
+solo-lectura.
 
 Los roles se almacenan en `BackofficeRoles` (Firestore) y se asignan desde **Administración → Roles y Permisos**. El rol `admin` es fijo y no editable desde el panel. `supervisor` y `data_entry` se pueden crear con `npm run seed:backoffice-roles` (ver [Seed scripts](#seed-scripts)) en vez de crearlos a mano.
 

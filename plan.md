@@ -51,9 +51,12 @@ Asignación territorial por nivel:
 - Autenticación: Firebase Auth (email/password)
 
 ### Back Office
-- `admin` — Desarrolladores. Acceso total.
-- `supervisor` — Lectura amplia y reportes.
-- `data_entry` (Capturista) — Alta de información y catálogos.
+- `admin` — Acceso total: lo operativo (captura, catálogos, reportes) más la configuración del
+  sistema (cuentas App, campañas push, niveles organizacionales, roles/usuarios Back Office).
+- `supervisor` — Acceso operativo completo (captura, catálogos, reportes), sin configuración
+  del sistema. Decisión 2026-10: el Back Office lo usan pocas personas de confianza (a
+  diferencia de la App, más operativa), así que no tiene sentido limitarlo a solo-lectura.
+- `data_entry` (Capturista) — Alta de información y catálogos, sin reportes.
 
 ### Reglas de separación de acceso
 - El organigrama (`OrgMembers`) es catálogo de personas y no otorga acceso por sí mismo.
@@ -193,7 +196,7 @@ Asignación territorial por nivel:
 > En esta etapa, la validación de permisos y jerarquía se implementa en UI/cliente. No se definen reglas de seguridad de Firestore para este control por ahora.
 
 **Descripción operativa (alta de usuario App):**
-1. `data_entry` o `admin` crea/actualiza el registro en `OrgMembers`.
+1. `data_entry`, `supervisor` o `admin` crea/actualiza el registro en `OrgMembers`.
 2. Si el nivel permite app (`canUseApp = true`), se habilita la acción "Create App Access" solo para `admin`.
 3. El sistema crea credencial en Firebase Auth (email/password temporal).
 4. El sistema crea `SystemUsers` con `type = app` y `orgMemberId`.
@@ -266,7 +269,7 @@ Reglas obligatorias por tipo (`deliveryType`):
 ### `IndirectDeliveries` — Entregas indirectas (Back Office + App)
 
 Disponible en:
-- **Back Office:** usuarios `data_entry` y `admin`
+- **Back Office:** usuarios `data_entry`, `supervisor` y `admin`
 - **App Android:** usuarios con capacidad `can_create_indirect_delivery`
 
 | Campo | Tipo |
@@ -490,10 +493,10 @@ Reglas mínimas del endpoint:
 
 | Acción | admin | supervisor | data_entry |
 |---|---|---|---|
-| Entrega indirecta | ✅ | ❌ | ✅ |
-| Alta OrgMembers | ✅ | ❌ | ✅ |
+| Entrega indirecta | ✅ | ✅ | ✅ |
+| Alta OrgMembers | ✅ | ✅ | ✅ |
 | Asignar cuenta App a org_member | ✅ | ❌ | ❌ |
-| Gestionar catálogos | ✅ | ❌ | ✅ |
+| Gestionar catálogos | ✅ | ✅ | ✅ |
 | Gestionar OrgLevels | ✅ | ❌ | ❌ |
 | Enviar push a App (global/segmentado) | ✅ | ❌ | ❌ |
 | Ver reportes completos | ✅ | ✅ | ❌ |
@@ -576,7 +579,7 @@ Reglas mínimas del endpoint:
 
 2. **Creación de acceso App**
   - Solo `admin` puede ejecutar "Create App Access".
-  - `data_entry` solo administra datos de `OrgMembers` y catálogos permitidos.
+  - `data_entry` y `supervisor` administran datos de `OrgMembers` y catálogos permitidos, pero no pueden crear acceso App.
 
 3. **Alta de promovidos**
   - Solo Activista desde App (`can_register_promoted`).
@@ -620,7 +623,7 @@ Reglas UI transversales:
 
 | Canal | Usuario permitido | Regla de autorización | Campos mínimos |
 |---|---|---|---|
-| Back Office | `admin`, `data_entry` | RBAC Back Office | `aidTypeId`, `description`, `beneficiaryName`, `date` |
+| Back Office | `admin`, `supervisor`, `data_entry` | RBAC Back Office | `aidTypeId`, `description`, `beneficiaryName`, `date` |
 | App Android | Nivel con `can_create_indirect_delivery` | Capability en `OrgLevels` | `aidTypeId`, `description`, `beneficiaryName`, `localDate` |
 
 ### Push notifications (UI Back Office)
