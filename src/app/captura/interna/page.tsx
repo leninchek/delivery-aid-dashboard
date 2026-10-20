@@ -261,7 +261,7 @@ function EntregaInternaContent() {
     if (isActivistToPromoted) {
       if (!form.toPromotedId) errs.toPromotedId = "El promovido es obligatorio.";
     } else {
-      if (!form.toOrgId) errs.toOrgId = "El destinatario es obligatorio.";
+      if (!form.toOrgId) errs.toOrgId = "El campo Recibe es obligatorio.";
     }
 
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
@@ -396,9 +396,9 @@ function EntregaInternaContent() {
 
           <form className="mt-6 space-y-4" onSubmit={(e) => void handleSubmit(e)}>
 
-            {/* 1. Entregador */}
+            {/* 1. Entrega */}
             <FormSelect
-              label="Entregador"
+              label="Entrega"
               value={form.fromOrgId}
               onChange={(v) => setField("fromOrgId", v)}
               error={fieldErrors.fromOrgId}
@@ -430,10 +430,10 @@ function EntregaInternaContent() {
               </p>
             )}
 
-            {/* 3. Destinatario */}
+            {/* 3. Recibe */}
             {form.deliveryTypeCode && (
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-slate-700">Destinatario</label>
+                <label className="block text-sm font-medium text-slate-700">Recibe</label>
 
                 {isActivistToPromoted ? (
                   /* Selector de promovido */
@@ -496,8 +496,8 @@ function EntregaInternaContent() {
                   >
                     <option value="">
                       {eligibleRecipients.length === 0
-                        ? "Sin destinatarios disponibles para este tipo"
-                        : "Selecciona un destinatario"}
+                        ? "Sin opciones disponibles para este tipo"
+                        : "Selecciona"}
                     </option>
                     {eligibleRecipients.map((m) => (
                       <option key={m.id} value={m.id}>{m.name}</option>
