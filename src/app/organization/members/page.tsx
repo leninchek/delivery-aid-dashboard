@@ -11,6 +11,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
@@ -387,8 +388,53 @@ function OrgMembersContent() {
 
     try {
       if (editingId) {
-        await updateDoc(doc(firestoreDb, "OrgMembers", editingId), payload);
-        showToast("Miembro actualizado.");
+        const currentMember = memberById.get(editingId);
+        const pathChanged = currentMember != null
+          && JSON.stringify(currentMember.path) !== JSON.stringify(memberPath);
+
+        if (pathChanged && currentMember) {
+          // Reasignar el superior de este miembro no solo cambia su propio path --
+          // todo su equipo (subordinados directos e indirectos) sigue cargando el
+          // path viejo en Firestore si no se actualiza en cascada. Reemplazamos,
+          // en el path de cada descendiente, el tramo hasta este miembro (inclusive)
+          // por su nueva ascendencia, conservando el resto de su propio linaje.
+          const newPrefix   = [...memberPath, editingId];
+          const descendants = items.filter(
+            (item) => item.id !== editingId && item.path.includes(editingId)
+          );
+
+          const BATCH_LIMIT = 450; // margen bajo el límite de 500 ops de Firestore
+          let batch      = writeBatch(firestoreDb);
+          let opsInBatch = 0;
+
+          batch.update(doc(firestoreDb, "OrgMembers", editingId), payload);
+          opsInBatch++;
+
+          for (const member of descendants) {
+            if (opsInBatch >= BATCH_LIMIT) {
+              await batch.commit();
+              batch      = writeBatch(firestoreDb);
+              opsInBatch = 0;
+            }
+            const idx = member.path.indexOf(editingId);
+            batch.update(doc(firestoreDb, "OrgMembers", member.id), {
+              path:      [...newPrefix, ...member.path.slice(idx + 1)],
+              updatedAt: serverTimestamp(),
+            });
+            opsInBatch++;
+          }
+
+          await batch.commit();
+
+          showToast(
+            descendants.length > 0
+              ? `Miembro actualizado (se reubicaron ${descendants.length} subordinado${descendants.length === 1 ? "" : "s"}).`
+              : "Miembro actualizado."
+          );
+        } else {
+          await updateDoc(doc(firestoreDb, "OrgMembers", editingId), payload);
+          showToast("Miembro actualizado.");
+        }
       } else {
         await addDoc(collection(firestoreDb, "OrgMembers"), {
           ...payload,
