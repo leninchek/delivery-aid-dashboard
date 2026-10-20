@@ -24,7 +24,12 @@ const roleSeeds: RoleSeed[] = [
   {
     id:          "supervisor",
     name:        "Supervisor",
-    permissions: ["reports"],
+    // Igual que data_entry + reports: en el Back Office hay pocas personas, de
+    // confianza, a diferencia de la App (más operativa). Supervisor puede hacer
+    // todo lo operativo (captura, catálogos, reportes) -- la única diferencia
+    // real con admin es que no configura el sistema (roles, cuentas BO, niveles
+    // organizacionales, tipos de entrega, acceso App, campañas push).
+    permissions: ["capture", "catalogs", "reports"],
   },
   {
     id:          "data_entry",
