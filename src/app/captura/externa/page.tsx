@@ -15,7 +15,7 @@ import { showToast } from "@/hooks/useToast";
 import { unitDisplayMap } from "@/lib/utils";
 import { validateMexicanPhone, validateCurp, validateRequiredName } from "@/utils/validators";
 import { uploadEvidenceFile } from "@/utils/storage-upload";
-import type { OrgMember, AidType } from "@/types/shared";
+import type { OrgMember, AidType, OrgLevel } from "@/types/shared";
 
 type IndirectaForm = {
   orgMemberId:     string;
@@ -53,6 +53,7 @@ function EntregaExternaContent() {
   const missingVars  = getMissingFirebaseEnvVars();
 
   const [orgMembers,   setOrgMembers]   = useState<OrgMember[]>([]);
+  const [levels,       setLevels]       = useState<OrgLevel[]>([]);
   const [aidTypes,     setAidTypes]     = useState<AidType[]>([]);
   const [recent,       setRecent]       = useState<RecentEntry[]>([]);
   const [form,         setForm]         = useState<IndirectaForm>(defaultForm);
@@ -107,11 +108,31 @@ function EntregaExternaContent() {
       })))
     );
 
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(
+      query(collection(db, "OrgLevels"), orderBy("rank", "asc")),
+      (snap) => setLevels(snap.docs.map((d) => ({
+        id:           d.id,
+        name:         d.get("name")         || "",
+        rank:         d.get("rank")         || 0,
+        canUseApp:    d.get("canUseApp")    ?? false,
+        capabilities: d.get("capabilities") || [],
+        active:       d.get("active")       ?? true,
+      })))
+    );
+
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   const aidTypeMap  = useMemo(() => new Map(aidTypes.map((a) => [a.id, a])),  [aidTypes]);
   const memberMap   = useMemo(() => new Map(orgMembers.map((m) => [m.id, m])), [orgMembers]);
+  const levelById   = useMemo(() => new Map(levels.map((l) => [l.id, l])),     [levels]);
+
+  // Cualquier nivel puede registrar una entrega externa -- mostrar el nivel evita
+  // confundir homónimos.
+  function memberOptionLabel(m: OrgMember): string {
+    const level = levelById.get(m.levelId);
+    return level ? `${m.name} (${level.name})` : m.name;
+  }
 
   const selectedAidType = form.aidTypeId ? aidTypeMap.get(form.aidTypeId) : undefined;
   const unitLabel       = selectedAidType ? unitDisplayMap[selectedAidType.unit] : "";
@@ -276,7 +297,7 @@ function EntregaExternaContent() {
             >
               <option value="">Selecciona un miembro</option>
               {orgMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>{memberOptionLabel(m)}</option>
               ))}
             </FormSelect>
 

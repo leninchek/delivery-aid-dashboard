@@ -14,7 +14,7 @@ import { getFirestoreDb } from "@/lib/firebase";
 import { showToast } from "@/hooks/useToast";
 import { unitDisplayMap } from "@/lib/utils";
 import { uploadEvidenceFile } from "@/utils/storage-upload";
-import type { OrgMember, AidType } from "@/types/shared";
+import type { OrgMember, AidType, OrgLevel, Community } from "@/types/shared";
 
 type DirectDeliveryType = {
   id:           string;
@@ -65,6 +65,8 @@ function EntregaInternaContent() {
   const missingVars  = getMissingFirebaseEnvVars();
 
   const [orgMembers,    setOrgMembers]    = useState<OrgMember[]>([]);
+  const [levels,        setLevels]        = useState<OrgLevel[]>([]);
+  const [communities,   setCommunities]   = useState<Community[]>([]);
   const [deliveryTypes, setDeliveryTypes] = useState<DirectDeliveryType[]>([]);
   const [aidTypes,      setAidTypes]      = useState<AidType[]>([]);
   const [promovidos,    setPromovidos]    = useState<Promovido[]>([]);
@@ -149,12 +151,52 @@ function EntregaInternaContent() {
       })))
     );
 
-    return () => { u1(); u2(); u3(); u4(); u5(); };
+    const u6 = onSnapshot(
+      query(collection(db, "OrgLevels"), orderBy("rank", "asc")),
+      (snap) => setLevels(snap.docs.map((d) => ({
+        id:           d.id,
+        name:         d.get("name")         || "",
+        rank:         d.get("rank")         || 0,
+        canUseApp:    d.get("canUseApp")    ?? false,
+        capabilities: d.get("capabilities") || [],
+        active:       d.get("active")       ?? true,
+      })))
+    );
+
+    const u7 = onSnapshot(
+      query(collection(db, "Communities"), orderBy("name", "asc")),
+      (snap) => setCommunities(snap.docs.map((d) => ({
+        id:                   d.id,
+        name:                 d.get("name")   || "",
+        cityId:               d.get("cityId") || null,
+        delegateId:           d.get("delegateId")           || null,
+        subDelegateId:        d.get("subDelegateId")        || null,
+        ejidalCommissionerId: d.get("ejidalCommissionerId") || null,
+      })))
+    );
+
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
   }, []);
 
   const aidTypeMap      = useMemo(() => new Map(aidTypes.map((a) => [a.id, a])),      [aidTypes]);
   const memberMap       = useMemo(() => new Map(orgMembers.map((m) => [m.id, m])),    [orgMembers]);
+  const levelById       = useMemo(() => new Map(levels.map((l) => [l.id, l])),        [levels]);
+  const communityById   = useMemo(() => new Map(communities.map((c) => [c.id, c])),   [communities]);
   const deliveryTypeMap = useMemo(() => new Map(deliveryTypes.map((dt) => [dt.code, dt])), [deliveryTypes]);
+
+  // "Entrega" puede ser cualquier nivel -- mostrar el nivel evita confundir homónimos
+  // o no saber si se eligió al Coordinador o al Seccional correcto.
+  function memberOptionLabel(m: OrgMember): string {
+    const level = levelById.get(m.levelId);
+    return level ? `${m.name} (${level.name})` : m.name;
+  }
+
+  // "Recibe" (subordinados) ya está filtrado al nivel destino correcto -- repetirlo
+  // sería ruido. La comunidad sí distingue entre homónimos del mismo nivel.
+  function recipientOptionLabel(m: OrgMember): string {
+    const community = m.assignment?.communityId ? communityById.get(m.assignment.communityId) : undefined;
+    return community ? `${m.name} (${community.name})` : m.name;
+  }
 
   const fromMember = form.fromOrgId ? memberMap.get(form.fromOrgId) : undefined;
 
@@ -405,7 +447,7 @@ function EntregaInternaContent() {
             >
               <option value="">Selecciona un miembro</option>
               {orgMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>{memberOptionLabel(m)}</option>
               ))}
             </FormSelect>
 
@@ -500,7 +542,7 @@ function EntregaInternaContent() {
                         : "Selecciona"}
                     </option>
                     {eligibleRecipients.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
+                      <option key={m.id} value={m.id}>{recipientOptionLabel(m)}</option>
                     ))}
                   </select>
                 )}

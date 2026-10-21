@@ -73,8 +73,16 @@ function CredentialsContent() {
     Promise.all([
       getDocs(query(collection(db, "OrgMembers"),   orderBy("name", "asc"))),
       getDocs(query(collection(db, "Communities"),  orderBy("name", "asc"))),
-    ]).then(([membersSnap, commSnap]) => {
-      setMembers(membersSnap.docs.map((d) => ({ id: d.id, name: (d.get("name") as string) || "" })));
+      getDocs(collection(db, "OrgLevels")),
+    ]).then(([membersSnap, commSnap, levelsSnap]) => {
+      // Solo nivel Activista puede ser dueño de un Promovido -- filtrar aquí evita
+      // ofrecer niveles que nunca podrían serlo.
+      const activistLevelId = levelsSnap.docs.find((d) => d.get("name") === "Activista")?.id;
+      setMembers(
+        membersSnap.docs
+          .filter((d) => d.get("levelId") === activistLevelId)
+          .map((d) => ({ id: d.id, name: (d.get("name") as string) || "" }))
+      );
       setCommunities(commSnap.docs.map((d)  => ({ id: d.id, name: (d.get("name") as string) || "" })));
     }).catch((e) => setError((e as Error).message));
   }, [isConfigured]);

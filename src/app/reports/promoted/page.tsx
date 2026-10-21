@@ -114,14 +114,19 @@ function PromotedReportContent() {
         d.id,
         { name: (d.get("name") as string) || d.id, rank: (d.get("rank") as number) || 0 },
       ]));
+      const activistLevelId = levelsSnap.docs.find((d) => d.get("name") === "Activista")?.id;
 
       setLevelOptions(
         levelsSnap.docs
           .map((d) => ({ id: d.id, name: (d.get("name") as string) || d.id, rank: (d.get("rank") as number) || 0 }))
           .sort((a, b) => a.rank - b.rank),
       );
+      // Solo nivel Activista puede ser dueño de un Promovido -- filtrar aquí evita
+      // ofrecer niveles que nunca podrían serlo (coincide con lo que ya exige la
+      // escritura en Captura > Promovidos).
       setActivistOptions(
         membersSnap.docs
+          .filter((d) => d.get("levelId") === activistLevelId)
           .map((d) => {
             const levelId = (d.get("levelId") as string) || "";
             return {
