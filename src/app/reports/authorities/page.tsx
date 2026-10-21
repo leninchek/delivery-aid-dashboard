@@ -7,6 +7,7 @@ import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { exportToCsv } from "@/lib/report-utils";
+import { PRIMARY_CITY_NAME } from "@/lib/utils";
 import type { Authority, City, Community } from "@/types/shared";
 
 type AuthoritySlot = { label: string; authority: Authority };
@@ -62,15 +63,19 @@ function AuthoritiesReportContent() {
         curp:      d.get("curp")      || "",
         birthDate: d.get("birthDate") || "",
       })));
-      setCities(citySnap.docs.map((d) => ({
-        id:                   d.id,
-        name:                 d.get("name")  || "",
-        state:                d.get("state") || "",
-        delegateId:           null,
-        subDelegateId:        null,
-        mayorId:              null,
-        ejidalCommissionerId: null,
-      })));
+      setCities(
+        citySnap.docs
+          .map((d) => ({
+            id:                   d.id,
+            name:                 d.get("name")  || "",
+            state:                d.get("state") || "",
+            delegateId:           null,
+            subDelegateId:        null,
+            mayorId:              null,
+            ejidalCommissionerId: null,
+          }))
+          .filter((city) => city.name === PRIMARY_CITY_NAME)
+      );
     });
   }, [isConfigured]);
 

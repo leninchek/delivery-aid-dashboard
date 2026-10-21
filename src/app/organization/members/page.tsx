@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { PRIMARY_CITY_NAME } from "@/lib/utils";
 import { validateMexicanPhone, validateCurp, validateBirthDate } from "@/utils/validators";
 import { showToast } from "@/hooks/useToast";
 
@@ -203,7 +204,9 @@ function OrgMembersContent() {
         query(collection(firestoreDb, "Cities"), orderBy("name", "asc")),
         (snapshot) => {
           setCities(
-            snapshot.docs.map((item) => ({ id: item.id, name: item.get("name") || "" }))
+            snapshot.docs
+              .map((item) => ({ id: item.id, name: item.get("name") || "" }))
+              .filter((city) => city.name === PRIMARY_CITY_NAME)
           );
         },
         (snapshotError) => setError(snapshotError.message)

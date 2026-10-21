@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MissingConfigNotice } from "@/components/config/missing-config-notice";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
+import { PRIMARY_CITY_NAME } from "@/lib/utils";
 import { showToast } from "@/hooks/useToast";
 import { validateAppUserCreate } from "@/utils/validators";
 import { parseCsvImport } from "@/utils/csv-import";
@@ -129,7 +130,11 @@ function AppUsersContent() {
         })))
       ),
       onSnapshot(query(collection(db, "Cities"),      orderBy("name", "asc")), (snap) =>
-        setCities(snap.docs.map((d) => ({ id: d.id, name: d.get("name") || "" })))
+        setCities(
+          snap.docs
+            .map((d) => ({ id: d.id, name: d.get("name") || "" }))
+            .filter((city) => city.name === PRIMARY_CITY_NAME)
+        )
       ),
       onSnapshot(query(collection(db, "Communities"), orderBy("name", "asc")), (snap) =>
         setCommunities(snap.docs.map((d) => ({

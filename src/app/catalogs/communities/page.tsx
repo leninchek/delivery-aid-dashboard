@@ -9,7 +9,7 @@ import { FormSelect } from "@/components/form/FormSelect";
 import { getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
 import { getFirestoreDb } from "@/lib/firebase";
 import { useCatalogCrud } from "@/hooks/useCatalogCrud";
-import { toNullableId } from "@/lib/utils";
+import { toNullableId, PRIMARY_CITY_NAME } from "@/lib/utils";
 import { showToast } from "@/hooks/useToast";
 import { validateRequiredName } from "@/utils/validators";
 import type { Authority, City, Community } from "@/types/shared";
@@ -79,15 +79,17 @@ function CommunitiesContent() {
     const q = query(collection(db, "Cities"), orderBy("name", "asc"));
     const unsub = onSnapshot(q, (snap) =>
       setCities(
-        snap.docs.map((d) => ({
-          id: d.id,
-          name: d.get("name") || "",
-          state: d.get("state") || "",
-          delegateId: d.get("delegateId") || null,
-          subDelegateId: d.get("subDelegateId") || null,
-          mayorId: d.get("mayorId") || null,
-          ejidalCommissionerId: d.get("ejidalCommissionerId") || null,
-        }))
+        snap.docs
+          .map((d) => ({
+            id: d.id,
+            name: d.get("name") || "",
+            state: d.get("state") || "",
+            delegateId: d.get("delegateId") || null,
+            subDelegateId: d.get("subDelegateId") || null,
+            mayorId: d.get("mayorId") || null,
+            ejidalCommissionerId: d.get("ejidalCommissionerId") || null,
+          }))
+          .filter((city) => city.name === PRIMARY_CITY_NAME)
       )
     );
     return () => unsub();

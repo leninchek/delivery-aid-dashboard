@@ -10,6 +10,7 @@ import { SortTh } from "@/components/reports/sort-th";
 import { TableSkeleton } from "@/components/reports/table-skeleton";
 import { useReportSort } from "@/hooks/useReportSort";
 import { getFirestoreDb, getMissingFirebaseEnvVars, hasFirebaseConfig } from "@/lib";
+import { PRIMARY_CITY_NAME } from "@/lib/utils";
 import {
   computeDateRange,
   exportToCsv,
@@ -64,6 +65,7 @@ function CommunitiesReportContent() {
         setMunicipios(
           snap.docs
             .map((d) => ({ id: d.id, name: (d.get("name") as string) || d.id }))
+            .filter((city) => city.name === PRIMARY_CITY_NAME)
             .sort((a, b) => a.name.localeCompare(b.name)),
         ),
       )

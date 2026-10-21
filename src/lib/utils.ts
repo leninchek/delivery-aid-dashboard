@@ -1,5 +1,12 @@
 import type { AidUnit, AuthorityType } from "@/types/shared";
 
+// El programa opera únicamente en el municipio de Felipe Carrillo Puerto -- el
+// catálogo de Ciudades trae los 11 municipios de Quintana Roo (genérico, no
+// específico del programa), pero Communities solo tiene datos bajo esta ciudad
+// (ver TARGET_CITY en scripts/seed-communities.ts). Ofrecer las otras 10 en
+// cualquier selector/filtro no tiene sentido -- nunca van a tener datos detrás.
+export const PRIMARY_CITY_NAME = "Felipe Carrillo Puerto";
+
 export function toNullableId(value: string): string | null {
   return value ? value : null;
 }
