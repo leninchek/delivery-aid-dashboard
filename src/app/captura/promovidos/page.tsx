@@ -15,7 +15,9 @@ import { showToast } from "@/hooks/useToast";
 import { formatDateInput } from "@/lib/utils";
 import { validateAuthority } from "@/utils/validators";
 import { uploadEvidenceFile } from "@/utils/storage-upload";
-import type { OrgMember, Community } from "@/types/shared";
+import type { OrgMember, Community, OrgLevel } from "@/types/shared";
+
+const ACTIVIST_LEVEL_NAME = "Activista";
 
 type PromovidoForm = {
   name: string;
@@ -54,15 +56,17 @@ function PromovidosCaptureContent() {
   const isConfigured = hasFirebaseConfig();
   const missingVars  = getMissingFirebaseEnvVars();
 
-  const [promovidos,   setPromovidos]   = useState<Promovido[]>([]);
-  const [orgMembers,   setOrgMembers]   = useState<OrgMember[]>([]);
-  const [communities,  setCommunities]  = useState<Community[]>([]);
-  const [form,         setForm]         = useState<PromovidoForm>(defaultForm);
-  const [fieldErrors,  setFieldErrors]  = useState<Record<string, string>>({});
-  const [error,        setError]        = useState<string | null>(null);
-  const [isSaving,     setIsSaving]     = useState(false);
-  const [search,       setSearch]       = useState("");
-  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [promovidos,    setPromovidos]    = useState<Promovido[]>([]);
+  const [orgMembers,    setOrgMembers]    = useState<OrgMember[]>([]);
+  const [communities,   setCommunities]   = useState<Community[]>([]);
+  const [levels,        setLevels]        = useState<OrgLevel[]>([]);
+  const [form,          setForm]          = useState<PromovidoForm>(defaultForm);
+  const [fieldErrors,   setFieldErrors]   = useState<Record<string, string>>({});
+  const [error,         setError]         = useState<string | null>(null);
+  const [isSaving,      setIsSaving]      = useState(false);
+  const [search,        setSearch]        = useState("");
+  const [editingId,     setEditingId]     = useState<string | null>(null);
+  const [activistSearch, setActivistSearch] = useState("");
 
   const frontRef = useRef<HTMLInputElement | null>(null);
   const backRef  = useRef<HTMLInputElement | null>(null);
@@ -117,11 +121,64 @@ function PromovidosCaptureContent() {
       })))
     );
 
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(
+      query(collection(db, "OrgLevels"), orderBy("rank", "asc")),
+      (snap) => setLevels(snap.docs.map((d) => ({
+        id:           d.id,
+        name:         d.get("name")         || "",
+        rank:         d.get("rank")         || 0,
+        canUseApp:    d.get("canUseApp")    ?? false,
+        capabilities: d.get("capabilities") || [],
+        active:       d.get("active")       ?? true,
+      })))
+    );
+
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   const memberMap    = useMemo(() => new Map(orgMembers.map((m) => [m.id, m])),     [orgMembers]);
   const communityMap = useMemo(() => new Map(communities.map((c) => [c.id, c])),    [communities]);
+
+  // El "activista" dueño de un promovido debe ser nivel Activista -- si no se
+  // filtra, se puede asignar por error a cualquier miembro del organigrama,
+  // dejando al promovido sin forma de recibir entregas por Captura Interna.
+  const activistLevelId = useMemo(
+    () => levels.find((l) => l.name === ACTIVIST_LEVEL_NAME)?.id,
+    [levels]
+  );
+  const activistOptions = useMemo(
+    () => activistLevelId ? orgMembers.filter((m) => m.levelId === activistLevelId) : [],
+    [orgMembers, activistLevelId]
+  );
+  // Nombre del Seccional (superior directo) y comunidad asignada -- se muestran junto al
+  // nombre del activista para distinguir entre homónimos, ya que el nivel ya no sirve
+  // para eso (todos los resultados son, por definición, Activista).
+  function activistContext(m: OrgMember): string {
+    const parts: string[] = [];
+    const parent = m.parentId ? memberMap.get(m.parentId) : undefined;
+    if (parent) parts.push(parent.name);
+    const community = m.assignment?.communityId ? communityMap.get(m.assignment.communityId) : undefined;
+    if (community) parts.push(community.name);
+    return parts.join(" · ");
+  }
+
+  function levelNameFor(m: OrgMember): string {
+    return levels.find((l) => l.id === m.levelId)?.name ?? "";
+  }
+
+  const selectedActivist = form.activistId ? memberMap.get(form.activistId) : undefined;
+  const selectedActivistIsValid = selectedActivist
+    ? activistOptions.some((m) => m.id === selectedActivist.id)
+    : true;
+
+  const filteredActivists = useMemo(() => {
+    const q = activistSearch.trim().toLowerCase();
+    return q
+      ? activistOptions.filter(
+          (m) => m.name.toLowerCase().includes(q) || m.curp.toLowerCase().includes(q)
+        )
+      : activistOptions;
+  }, [activistOptions, activistSearch]);
 
   const filteredPromovidos = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -137,6 +194,11 @@ function PromovidosCaptureContent() {
     setFieldErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
   }
 
+  function selectActivist(id: string) {
+    setField("activistId", id);
+    setActivistSearch("");
+  }
+
   function resetForm() {
     setEditingId(null);
     setForm(defaultForm);
@@ -144,6 +206,7 @@ function PromovidosCaptureContent() {
     setError(null);
     setFrontFile(null);
     setBackFile(null);
+    setActivistSearch("");
     if (frontRef.current) frontRef.current.value = "";
     if (backRef.current) backRef.current.value = "";
   }
@@ -162,6 +225,7 @@ function PromovidosCaptureContent() {
     setError(null);
     setFrontFile(null);
     setBackFile(null);
+    setActivistSearch("");
     if (frontRef.current) frontRef.current.value = "";
     if (backRef.current) backRef.current.value = "";
   }
@@ -170,7 +234,11 @@ function PromovidosCaptureContent() {
     e.preventDefault();
 
     const errs = validateAuthority(form);
-    if (!form.activistId)  errs.activistId  = "El activista es obligatorio.";
+    if (!form.activistId) {
+      errs.activistId = "El activista es obligatorio.";
+    } else if (!activistOptions.some((m) => m.id === form.activistId)) {
+      errs.activistId = "El activista asignado no es válido (debe ser nivel Activista) — reasígnalo.";
+    }
     if (!form.communityId) errs.communityId = "La comunidad es obligatoria.";
 
     if (Object.keys(errs).length > 0) {
@@ -385,17 +453,74 @@ function PromovidosCaptureContent() {
               }
             />
 
-            <FormSelect
-              label="Activista"
-              value={form.activistId}
-              onChange={(v) => setField("activistId", v)}
-              error={fieldErrors.activistId}
-            >
-              <option value="">Selecciona un activista</option>
-              {orgMembers.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </FormSelect>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Activista</label>
+
+              {selectedActivist && selectedActivistIsValid ? (
+                <div className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{selectedActivist.name}</p>
+                    <p className="text-xs text-slate-400">
+                      {activistContext(selectedActivist) || "Sin Seccional/comunidad asignada"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setField("activistId", ""); setActivistSearch(""); }}
+                    className="text-xs text-slate-400 hover:text-slate-700"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedActivist && !selectedActivistIsValid && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      El activista asignado actualmente (<strong>{selectedActivist.name}</strong>
+                      {levelNameFor(selectedActivist) ? ` — ${levelNameFor(selectedActivist)}` : ""}) no es
+                      válido — solo un miembro de nivel Activista puede recibir promovidos. Busca y
+                      selecciona uno nuevo abajo.
+                    </p>
+                  )}
+                  <input
+                    type="text"
+                    value={activistSearch}
+                    onChange={(e) => setActivistSearch(e.target.value)}
+                    placeholder="Buscar activista por nombre o CURP"
+                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:border-slate-900 ${
+                      fieldErrors.activistId ? "border-rose-400 bg-rose-50" : "border-slate-300"
+                    }`}
+                  />
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                    {activistOptions.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">
+                        No hay miembros de nivel Activista registrados todavía.
+                      </p>
+                    ) : filteredActivists.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-slate-400">Sin resultados para esa búsqueda.</p>
+                    ) : (
+                      filteredActivists.slice(0, 10).map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => selectActivist(m.id)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        >
+                          <span className="font-medium text-slate-900">{m.name}</span>
+                          {activistContext(m) && (
+                            <span className="ml-2 text-xs text-slate-400">{activistContext(m)}</span>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {fieldErrors.activistId && (
+                <p className="text-xs text-rose-600">{fieldErrors.activistId}</p>
+              )}
+            </div>
 
             <FormSelect
               label="Comunidad"
