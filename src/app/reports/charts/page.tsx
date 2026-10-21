@@ -159,6 +159,14 @@ function ChartsContent() {
             id:          d.id,
             communityId: ((d.get("assignment") as Record<string, unknown> | null)?.communityId as string | null) ?? null,
           })));
+          // "Usuarios app" se deriva de OrgMembers.appUserId en vez de leer SystemUsers
+          // directo -- SystemUsers solo permite leer el propio documento salvo que seas
+          // admin, así que una consulta a la colección completa fallaba con "Missing or
+          // insufficient permissions" para Supervisor (cualquier rol con "reports" que no
+          // sea admin).
+          const appMembers = snap.docs.filter((d) => Boolean(d.get("appUserId")));
+          setAppUsersCount(appMembers.length);
+          setActiveAppUsersCount(appMembers.filter((d) => d.get("active") ?? true).length);
         },
         (err) => setError(err.message),
       ),
@@ -169,16 +177,6 @@ function ChartsContent() {
           id:   d.id,
           name: (d.get("name") as string) || d.id,
         }))),
-        (err) => setError(err.message),
-      ),
-
-      onSnapshot(
-        collection(db, "SystemUsers"),
-        (snap) => {
-          const appUsers = snap.docs.filter((d) => d.get("type") === "app");
-          setAppUsersCount(appUsers.length);
-          setActiveAppUsersCount(appUsers.filter((d) => d.get("active") ?? true).length);
-        },
         (err) => setError(err.message),
       ),
     ];
